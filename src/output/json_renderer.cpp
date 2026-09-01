@@ -35,7 +35,7 @@ std::string JsonRenderer::escape(const std::string_view input) {
 
 void JsonRenderer::render(const SearchResult& result, std::ostream& out) const {
     out << "{\n";
-    out << "  \"schema_version\": 1,\n";
+    out << "  \"schema_version\": 2,\n";
     out << "  \"query\": \"" << escape(result.raw_query) << "\",\n";
     out << "  \"normalized_query\": \"" << escape(result.normalized_query) << "\",\n";
     out << "  \"results\": [";
@@ -54,6 +54,18 @@ void JsonRenderer::render(const SearchResult& result, std::ostream& out) const {
         out << "      \"installed\": " << (candidate.installed ? "true" : "false") << ",\n";
         out << "      \"repository_available\": "
             << (candidate.repository_available ? "true" : "false") << ",\n";
+        out << "      \"interface\": \""
+            << interface_kind_name(candidate.interface_kind()) << "\",\n";
+        out << "      \"cli_capable\": " << (candidate.cli_capable ? "true" : "false") << ",\n";
+        out << "      \"gui_capable\": " << (candidate.gui_capable ? "true" : "false") << ",\n";
+        out << "      \"matched_terms\": [";
+        for (std::size_t term_index = 0; term_index < candidate.matched_terms.size(); ++term_index) {
+            if (term_index != 0) {
+                out << ", ";
+            }
+            out << "\"" << escape(candidate.matched_terms[term_index]) << "\"";
+        }
+        out << "],\n";
         out << "      \"score\": " << std::fixed << std::setprecision(4) << candidate.score << '\n';
         out << "    }";
         if (i + 1 < result.candidates.size()) {

@@ -1,13 +1,16 @@
 #include "acclorite/sources/path_source.hpp"
 
 #include <algorithm>
-#include <cstdlib>
+#include <cctype>
 #include <ranges>
 #include <string>
 #include <string_view>
 #include <unordered_set>
 
 #include <unistd.h>
+
+#include "acclorite/query/lexicon.hpp"
+#include "acclorite/system/executable.hpp"
 
 namespace acclorite {
 namespace {
@@ -20,36 +23,37 @@ std::string lower(std::string_view input) {
     return out;
 }
 
+bool approximately_contains(const std::string_view haystack, const std::string_view needle) {
+    if (needle.empty()) {
+        return false;
+    }
+    if (haystack.find(needle) != std::string_view::npos) {
+        return true;
+    }
+
+    // Cheap morphology tolerance for command names such as "archiver" vs
+    // "archive". Real fuzzy matching comes later with RapidFuzz.
+    const std::size_t common_needed = std::min<std::size_t>(4, needle.size());
+    if (common_needed < 4 || haystack.size() < 4) {
+        return false;
+    }
+
+    const std::size_t limit = std::min(haystack.size(), needle.size());
+    std::size_t common = 0;
+    while (common < limit && haystack[common] == needle[common]) {
+        ++common;
+    }
+    return common >= 4;
+}
+
 } // namespace
 
 bool PathSource::available() const {
-    const char* path = std::getenv("PATH");
-    return path != nullptr && *path != '\0';
+    return !system::path_directories().empty();
 }
 
 std::vector<std::filesystem::path> PathSource::path_directories() {
-    std::vector<std::filesystem::path> directories;
-
-    const char* raw_path = std::getenv("PATH");
-    if (!raw_path) {
-        return directories;
-    }
-
-    std::string path(raw_path);
-    std::size_t start = 0;
-
-    while (start <= path.size()) {
-        const std::size_t end = path.find(':', start);
-        const std::string entry = path.substr(start, end - start);
-        directories.emplace_back(entry.empty() ? "." : entry);
-
-        if (end == std::string::npos) {
-            break;
-        }
-        start = end + 1;
-    }
-
-    return directories;
+    return system::path_directories();
 }
 
 double PathSource::score_name(const Query& query, const std::string& command) {
@@ -63,42 +67,48 @@ double PathSource::score_name(const Query& query, const std::string& command) {
         return 1.0;
     }
 
-    if (command_lower.starts_with(query.normalized)) {
-        return 0.86;
+    const auto terms = query::meaningful_terms(query);
+    if (terms.empty()) {
+        return 0.0;
     }
 
-    if (command_lower.find(query.normalized) != std::string::npos) {
-        return 0.72;
-    }
-
-    double best = 0.0;
-    std::size_t matches = 0;
-
-    for (const auto& token : query.tokens) {
-        if (token.empty()) {
-            continue;
+    if (terms.size() == 1) {
+        const auto& term = terms.front();
+        if (command_lower == term) {
+            return 0.96;
         }
+        if (command_lower.starts_with(term)) {
+            return 0.78;
+        }
+        if (command_lower.find(term) != std::string::npos) {
+            return 0.62;
+        }
+        return 0.0;
+    }
 
-        if (command_lower == token) {
-            best = std::max(best, 0.96);
-            ++matches;
-        } else if (command_lower.starts_with(token)) {
-            best = std::max(best, 0.78);
-            ++matches;
-        } else if (command_lower.find(token) != std::string::npos) {
-            best = std::max(best, 0.62);
-            ++matches;
+    // With a natural-language multi-word query, executable-name coincidence is
+    // weak evidence. PATH should support semantic sources, not let "text2image"
+    // beat rg merely because the user wrote "search text".
+    std::size_t matched = 0;
+    for (const auto& term : terms) {
+        if (approximately_contains(command_lower, term)) {
+            ++matched;
         }
     }
 
-    if (matches > 1) {
-        best = std::min(0.95, best + 0.04 * static_cast<double>(matches - 1));
+    if (matched == 0) {
+        return 0.0;
     }
 
-    return best;
+    const double coverage = static_cast<double>(matched) / static_cast<double>(terms.size());
+    if (matched == terms.size()) {
+        return std::min(0.68, 0.42 + (0.26 * coverage));
+    }
+
+    return 0.16 + (0.24 * coverage);
 }
 
-std::vector<Candidate> PathSource::search(const Query& query) const {
+std::vector<Candidate> PathSource::catalog() {
     std::vector<Candidate> candidates;
     std::unordered_set<std::string> seen_commands;
 
@@ -130,11 +140,6 @@ std::vector<Candidate> PathSource::search(const Query& query) const {
                 continue;
             }
 
-            const double score = score_name(query, command);
-            if (score <= 0.0) {
-                continue;
-            }
-
             seen_commands.insert(command);
             candidates.push_back(Candidate{
                 .command = command,
@@ -143,13 +148,26 @@ std::vector<Candidate> PathSource::search(const Query& query) const {
                 .source = "path",
                 .installed = true,
                 .repository_available = false,
+                .cli_capable = true,
+                .gui_capable = false,
                 .matched_terms = {},
-                .score = score,
+                .score = 0.0,
             });
         }
     }
 
     return candidates;
+}
+
+std::vector<Candidate> PathSource::search(const Query& query) const {
+    std::vector<Candidate> result;
+    for (auto candidate : catalog()) {
+        candidate.score = score_name(query, candidate.command);
+        if (candidate.score > 0.0) {
+            result.push_back(std::move(candidate));
+        }
+    }
+    return result;
 }
 
 } // namespace acclorite

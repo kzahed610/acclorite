@@ -8,16 +8,20 @@
 #include "acclorite/core/search_engine.hpp"
 #include "acclorite/output/json_renderer.hpp"
 #include "acclorite/output/terminal_renderer.hpp"
+#include "acclorite/sources/desktop_source.hpp"
+#include "acclorite/sources/index_source.hpp"
+#include "acclorite/sources/man_source.hpp"
 #include "acclorite/sources/path_source.hpp"
 
 namespace {
 
-constexpr std::string_view kVersion = "0.0.1-dev";
+constexpr std::string_view kVersion = "0.0.4-dev";
 
 void print_usage(std::ostream& out) {
     out << "Acclorite — Linux tool discovery assistant\n\n";
     out << "Usage:\n";
     out << "  acclorite [--json] <query...>\n";
+    out << "  acclorite --reindex\n";
     out << "  acclorite --version\n";
     out << "  acclorite --help\n";
 }
@@ -42,6 +46,7 @@ int main(int argc, char** argv) {
     }
 
     bool json = false;
+    bool reindex = false;
     std::vector<std::string> query_parts;
 
     for (int i = 1; i < argc; ++i) {
@@ -62,7 +67,24 @@ int main(int argc, char** argv) {
             continue;
         }
 
+        if (arg == "--reindex") {
+            reindex = true;
+            continue;
+        }
+
         query_parts.emplace_back(arg);
+    }
+
+    if (reindex) {
+        const acclorite::IndexSource index;
+        if (!index.rebuild()) {
+            std::cerr << "error: failed to rebuild Acclorite index\n";
+            return 1;
+        }
+        std::cout << "Rebuilt Acclorite index: " << acclorite::IndexSource::database_path().string() << '\n';
+        if (query_parts.empty()) {
+            return 0;
+        }
     }
 
     if (query_parts.empty()) {
@@ -74,7 +96,15 @@ int main(int argc, char** argv) {
     const acclorite::Query query = acclorite::Query::parse(join_query(query_parts));
 
     acclorite::SearchEngine engine;
-    engine.add_source(std::make_unique<acclorite::PathSource>());
+    auto index = std::make_unique<acclorite::IndexSource>();
+    if (index->available()) {
+        engine.add_source(std::move(index));
+    } else {
+        // Cache/index failure must degrade, not brick tool discovery.
+        engine.add_source(std::make_unique<acclorite::PathSource>());
+        engine.add_source(std::make_unique<acclorite::ManSource>());
+        engine.add_source(std::make_unique<acclorite::DesktopSource>());
+    }
 
     const acclorite::SearchResult result = engine.search(query);
 
