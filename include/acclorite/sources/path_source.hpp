@@ -10,6 +10,7 @@ namespace acclorite {
 class PathSource final : public KnowledgeSource {
 public:
     [[nodiscard]] bool available() const override;
+    [[nodiscard]] std::string_view diagnostic_name() const override { return "path"; }
     [[nodiscard]] std::vector<Candidate> search(const Query& query) const override;
     [[nodiscard]] static std::vector<Candidate> catalog();
 

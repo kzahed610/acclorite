@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "acclorite/query/relevance.hpp"
+#include "acclorite/ranking/evidence.hpp"
 #include "acclorite/system/executable.hpp"
 
 namespace acclorite {
@@ -266,12 +267,22 @@ std::vector<Candidate> DesktopSource::catalog() {
                 .path = executable ? executable->string() : std::string{},
                 .summary = description.empty() ? entry.name : description,
                 .source = "desktop",
+                .package = {},
+                .repository = {},
+                .package_version = {},
                 .installed = true,
                 .repository_available = false,
                 .cli_capable = executable.has_value(),
                 .gui_capable = true,
                 .matched_terms = {},
+                .provided_commands = {},
+                .descriptive_evidence = {},
+                .examples = {},
+                .learning_resources = {},
+                .evidence_trace = {},
+                .base_merge_trace = {},
                 .score = 0.0,
+                .ranking = std::nullopt,
             };
 
             auto [candidate_it, inserted] = candidates.try_emplace(command, incoming);
@@ -297,7 +308,13 @@ std::vector<Candidate> DesktopSource::search(const Query& query) const {
             continue;
         }
         candidate.score = match.score;
+        candidate.semantic_fit = match.semantic_fit;
         candidate.matched_terms = match.matched_terms;
+        if (query.explain_ranking) {
+            candidate.evidence_trace.push_back(ranking::semantic_evidence(
+                "desktop", "desktop name/description semantic match", match, {}, candidate.score
+            ));
+        }
         result.push_back(std::move(candidate));
     }
     return result;

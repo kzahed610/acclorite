@@ -11,19 +11,14 @@
 #include <vector>
 
 #include "acclorite/query/lexicon.hpp"
+#include "acclorite/query/relevance.hpp"
+#include "acclorite/ranking/evidence.hpp"
 #include "acclorite/system/executable.hpp"
 #include "acclorite/system/process.hpp"
 
 namespace acclorite {
 namespace {
 
-std::string lower(std::string_view input) {
-    std::string out(input);
-    std::ranges::transform(out, out.begin(), [](const unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
-    return out;
-}
 
 std::string trim(std::string value) {
     const auto not_space = [](const unsigned char ch) { return !std::isspace(ch); };
@@ -56,78 +51,6 @@ bool command_section(const std::string_view section) {
     return section.starts_with('1') || section.starts_with('8');
 }
 
-std::vector<std::string> words(std::string_view text) {
-    std::vector<std::string> result;
-    std::string current;
-
-    for (const unsigned char ch : text) {
-        if (std::isalnum(ch) || ch == '+' || ch == '#') {
-            current.push_back(static_cast<char>(std::tolower(ch)));
-        } else if (!current.empty()) {
-            result.push_back(std::move(current));
-            current.clear();
-        }
-    }
-
-    if (!current.empty()) {
-        result.push_back(std::move(current));
-    }
-
-    return result;
-}
-
-bool related_word(const std::string_view candidate, const std::string_view term) {
-    if (candidate == term) {
-        return true;
-    }
-
-    if (candidate.size() < 4 || term.size() < 4) {
-        return false;
-    }
-
-    const std::size_t limit = std::min(candidate.size(), term.size());
-    std::size_t common = 0;
-    while (common < limit && candidate[common] == term[common]) {
-        ++common;
-    }
-
-    // Cheap morphology: archive/archiver/archiving, process/processes,
-    // monitor/monitoring. Typo tolerance comes later via RapidFuzz.
-    return common >= 4 && common + 2 >= std::min(candidate.size(), term.size());
-}
-
-double term_quality(
-    const query::ConceptGroup& group,
-    const std::vector<std::string>& command_words,
-    const std::vector<std::string>& summary_words
-) {
-    const auto contains = [](const std::vector<std::string>& haystack, const std::string_view needle) {
-        return std::ranges::any_of(haystack, [&](const std::string& word) {
-            return related_word(word, needle);
-        });
-    };
-
-    if (contains(command_words, group.term)) {
-        return 1.00;
-    }
-    if (contains(summary_words, group.term)) {
-        return 0.94;
-    }
-
-    for (const auto& alternative : group.alternatives) {
-        if (alternative == group.term) {
-            continue;
-        }
-        if (contains(command_words, alternative)) {
-            return 0.80;
-        }
-        if (contains(summary_words, alternative)) {
-            return 0.70;
-        }
-    }
-
-    return 0.0;
-}
 
 } // namespace
 
@@ -203,55 +126,11 @@ std::vector<ManSource::ManualEntry> ManSource::parse_apropos(const std::string_v
 }
 
 double ManSource::score_entry(const Query& query, const ManualEntry& entry) {
-    if (query.normalized.empty()) {
-        return 0.0;
+    auto relevance = query::score_text(query, entry.command, entry.summary, 0.99, 0.93);
+    if (relevance.score > 0.0 && entry.section.starts_with('1')) {
+        relevance.score = std::min(0.96, relevance.score + 0.03);
     }
-
-    const std::string command = lower(entry.command);
-    if (command == query.normalized) {
-        return 0.99;
-    }
-
-    const auto groups = query::concept_groups(query);
-    if (groups.empty()) {
-        return 0.0;
-    }
-
-    const auto command_words = words(command);
-    const auto summary_words = words(entry.summary);
-
-    std::size_t matched_groups = 0;
-    double quality_sum = 0.0;
-    for (const auto& group : groups) {
-        const double quality = term_quality(group, command_words, summary_words);
-        if (quality > 0.0) {
-            ++matched_groups;
-            quality_sum += quality;
-        }
-    }
-
-    if (matched_groups == 0) {
-        return 0.0;
-    }
-
-    const double coverage = static_cast<double>(matched_groups) /
-                            static_cast<double>(groups.size());
-    const double average_quality = quality_sum / static_cast<double>(matched_groups);
-
-    double score = 0.0;
-    if (matched_groups == groups.size()) {
-        score = 0.68 + (0.22 * average_quality);
-    } else {
-        // Partial matches are recall candidates, not confident answers. This is the
-        // guardrail that stops one generic word from dominating a multi-word intent.
-        score = 0.14 + (0.32 * coverage) + (0.16 * average_quality);
-    }
-
-    if (entry.section.starts_with('1')) {
-        score += 0.03;
-    }
-
-    return std::min(score, 0.96);
+    return relevance.score;
 }
 
 std::vector<Candidate> ManSource::catalog() {
@@ -282,12 +161,22 @@ std::vector<Candidate> ManSource::catalog() {
             .path = executable->string(),
             .summary = entry.summary,
             .source = "man",
+            .package = {},
+            .repository = {},
+            .package_version = {},
             .installed = true,
             .repository_available = false,
             .cli_capable = true,
             .gui_capable = false,
             .matched_terms = {},
+            .provided_commands = {},
+            .descriptive_evidence = {},
+            .examples = {},
+            .learning_resources = {},
+            .evidence_trace = {},
+            .base_merge_trace = {},
             .score = 0.0,
+            .ranking = std::nullopt,
         };
 
         auto [it, inserted] = candidates.try_emplace(incoming.command, incoming);
@@ -340,9 +229,26 @@ std::vector<Candidate> ManSource::search(const Query& query) const {
             continue;
         }
 
-        const double score = score_entry(query, entry);
-        if (score <= 0.0) {
+        auto relevance = query::score_text(query, entry.command, entry.summary, 0.99, 0.93);
+        if (relevance.score <= 0.0) {
             continue;
+        }
+
+        std::vector<ranking::RankingAdjustment> source_adjustments;
+        double score = relevance.score;
+        if (entry.section.starts_with('1')) {
+            const double before = score;
+            score = std::min(0.96, score + 0.03);
+            if (score != before) {
+                source_adjustments.push_back(ranking::RankingAdjustment{
+                    .id = "manual-section-1",
+                    .label = "manual section 1 command bonus",
+                    .kind = ranking::AdjustmentKind::Add,
+                    .value = score - before,
+                    .before = before,
+                    .after = score,
+                });
+            }
         }
 
         Candidate incoming{
@@ -350,20 +256,31 @@ std::vector<Candidate> ManSource::search(const Query& query) const {
             .path = executable->string(),
             .summary = entry.summary,
             .source = "man",
+            .package = {},
+            .repository = {},
+            .package_version = {},
             .installed = true,
             .repository_available = false,
             .cli_capable = true,
             .gui_capable = false,
             .matched_terms = {},
+            .provided_commands = {},
+            .descriptive_evidence = {},
+            .examples = {},
+            .learning_resources = {},
+            .evidence_trace = {},
+            .base_merge_trace = {},
+            .semantic_fit = relevance.semantic_fit,
             .score = score,
+            .ranking = std::nullopt,
         };
 
-        for (const auto& group : query::concept_groups(query)) {
-            const auto command_words = words(incoming.command);
-            const auto summary_words = words(incoming.summary);
-            if (term_quality(group, command_words, summary_words) > 0.0) {
-                incoming.matched_terms.push_back(group.term);
-            }
+        incoming.matched_terms = relevance.matched_terms;
+        if (query.explain_ranking) {
+            incoming.evidence_trace.push_back(ranking::semantic_evidence(
+                "man", "manual synopsis semantic match", relevance,
+                std::move(source_adjustments), incoming.score
+            ));
         }
 
         auto [it, inserted] = candidates.try_emplace(incoming.command, incoming);

@@ -9,9 +9,18 @@
 
 namespace acclorite::query {
 
+enum class ConceptRole {
+    Action,
+    Subject,
+    Context,
+};
+
 struct ConceptGroup {
     std::string term;
     std::vector<std::string> alternatives;
+    ConceptRole role{ConceptRole::Subject};
+    double weight{1.0};
+    bool implicit{false};
 };
 
 [[nodiscard]] bool is_stopword(std::string_view token);

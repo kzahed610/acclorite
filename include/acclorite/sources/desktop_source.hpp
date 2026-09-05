@@ -10,6 +10,7 @@ namespace acclorite {
 class DesktopSource final : public KnowledgeSource {
 public:
     [[nodiscard]] bool available() const override;
+    [[nodiscard]] std::string_view diagnostic_name() const override { return "desktop"; }
     [[nodiscard]] std::vector<Candidate> search(const Query& query) const override;
     [[nodiscard]] static std::vector<Candidate> catalog();
 

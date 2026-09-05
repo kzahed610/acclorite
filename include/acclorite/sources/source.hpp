@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string_view>
 #include <vector>
 
 #include "acclorite/core/candidate.hpp"
@@ -12,6 +13,7 @@ public:
     virtual ~KnowledgeSource() = default;
 
     [[nodiscard]] virtual bool available() const = 0;
+    [[nodiscard]] virtual std::string_view diagnostic_name() const { return "source"; }
     [[nodiscard]] virtual std::vector<Candidate> search(const Query& query) const = 0;
 };
 

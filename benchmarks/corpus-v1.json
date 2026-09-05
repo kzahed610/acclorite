@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "name": "acclorite-core-arch-v1",
+  "description": "Deterministic Linux tool-discovery benchmark. Accepted winners intentionally allow equivalent utilities where the human intent does not imply one unique command.",
+  "cases": [
+    {
+      "id": "search-text",
+      "query": "search text",
+      "tags": ["generic", "search"],
+      "expect": {
+        "top1_any": ["rg"],
+        "top3_any": ["rg"],
+        "ambiguity": "clear"
+      }
+    },
+    {
+      "id": "search-inside-files",
+      "query": "search inside files recursively",
+      "tags": ["generic", "search"],
+      "expect": {
+        "top1_any": ["rg", "grep"],
+        "top3_any": ["rg", "grep"],
+        "forbid_top1": ["pdfgrep", "zipgrep"]
+      }
+    },
+    {
+      "id": "search-pdf-text",
+      "query": "search pdf text",
+      "tags": ["arch", "specialization"],
+      "expect": {
+        "top1_any": ["pdfgrep"],
+        "top3_any": ["pdfgrep"],
+        "ambiguity": "clear",
+        "min_confidence": 0.70
+      }
+    },
+    {
+      "id": "search-compressed",
+      "query": "search compressed files",
+      "tags": ["specialization", "search"],
+      "expect": {
+        "top1_any": ["lzgrep", "xzgrep", "zgrep", "zstdgrep", "zipgrep"],
+        "top3_any": ["lzgrep", "xzgrep", "zgrep", "zstdgrep", "zipgrep"]
+      }
+    },
+    {
+      "id": "full-text-search",
+      "query": "full text search",
+      "tags": ["arch", "specialization"],
+      "expect": {
+        "top1_any": ["recoll", "namazu", "python-whoosh"],
+        "top3_any": ["recoll", "namazu", "python-whoosh"],
+        "ambiguity": "clear"
+      }
+    },
+    {
+      "id": "duplicate-files",
+      "query": "duplicate files",
+      "tags": ["arch", "files"],
+      "expect": {
+        "top1_any": ["fdupes", "rdfind", "fclones", "jdupes"],
+        "top3_any": ["fdupes", "rdfind", "fclones", "jdupes"],
+        "forbid_top1": ["hardlink"],
+        "ambiguity": "competitive"
+      }
+    },
+    {
+      "id": "find-duplicate-files",
+      "query": "find duplicate files",
+      "tags": ["arch", "files"],
+      "expect": {
+        "top1_any": ["fdupes", "rdfind", "fclones", "jdupes"],
+        "top3_any": ["fdupes", "rdfind", "fclones", "jdupes"]
+      }
+    },
+    {
+      "id": "disk-usage",
+      "query": "disk usage",
+      "tags": ["storage"],
+      "expect": {
+        "top1_any": ["duf", "ncdu", "gdu", "dua", "pdu", "du"],
+        "top3_any": ["duf", "ncdu", "gdu", "dua", "pdu", "du"]
+      }
+    },
+    {
+      "id": "disk-space-human",
+      "query": "what is using all my disk space",
+      "tags": ["storage", "human"],
+      "expect": {
+        "top1_any": ["duf", "ncdu", "gdu", "dua", "pdu", "du", "btop"],
+        "top3_any": ["duf", "ncdu", "gdu", "dua", "pdu", "du", "btop"]
+      }
+    },
+    {
+      "id": "network-connections",
+      "query": "network connections",
+      "tags": ["network"],
+      "expect": {
+        "top1_any": ["ss"],
+        "top3_any": ["ss"]
+      }
+    },
+    {
+      "id": "show-network-connections",
+      "query": "show open network connections",
+      "tags": ["network"],
+      "expect": {
+        "top1_any": ["ss", "lsof", "netstat"],
+        "top3_any": ["ss", "lsof", "netstat"]
+      }
+    },
+    {
+      "id": "port-owner",
+      "query": "which process is using port 8080",
+      "tags": ["network", "inspect"],
+      "expect": {
+        "top1_any": ["fuser", "ss", "lsof"],
+        "top3_any": ["fuser", "ss", "lsof"],
+        "frame": "Inspect"
+      }
+    },
+    {
+      "id": "process-monitoring",
+      "query": "process monitoring",
+      "tags": ["process"],
+      "expect": {
+        "top1_any": ["btop", "htop", "btm", "atop", "plasma-systemmonitor", "gnome-system-monitor"],
+        "top3_any": ["btop", "htop", "btm", "atop", "plasma-systemmonitor", "gnome-system-monitor"],
+        "ambiguity": "clear",
+        "min_confidence": 0.70
+      }
+    },
+    {
+      "id": "ram-human",
+      "query": "what is eating RAM",
+      "tags": ["process", "human"],
+      "expect": {
+        "top1_any": ["btop", "htop", "top", "ps", "free"],
+        "top3_any": ["btop", "htop", "top", "ps", "free"],
+        "frame": "Inspect"
+      }
+    },
+    {
+      "id": "watch-cpu",
+      "query": "watch CPU usage",
+      "tags": ["process"],
+      "expect": {
+        "top1_any": ["btop", "htop", "top", "watch", "mpstat", "atop"],
+        "top3_any": ["btop", "htop", "top", "watch", "mpstat", "atop"]
+      }
+    },
+    {
+      "id": "archive-ambiguous",
+      "query": "archive files",
+      "tags": ["archive", "ambiguity"],
+      "expect": {
+        "ambiguity": "ambiguous",
+        "clarification_ids": ["archive-create", "archive-extract", "archive-manage"]
+      }
+    },
+    {
+      "id": "compress-folder",
+      "query": "compress a folder",
+      "tags": ["archive"],
+      "expect": {
+        "top1_any": ["tar", "zip", "7z", "7zz", "ark"],
+        "top3_any": ["tar", "zip", "7z", "7zz", "ark"]
+      }
+    },
+    {
+      "id": "extract-targz",
+      "query": "extract a tar.gz",
+      "tags": ["archive"],
+      "expect": {
+        "top1_any": ["tar", "bsdtar", "ark"],
+        "top3_any": ["tar", "bsdtar", "ark"]
+      }
+    },
+    {
+      "id": "compare-folders",
+      "query": "compare two folders",
+      "tags": ["files", "compare"],
+      "expect": {
+        "top1_any": ["diff", "meld", "rsync", "kompare"],
+        "top3_any": ["diff", "meld", "rsync", "kompare"],
+        "frame": "Discover"
+      }
+    },
+    {
+      "id": "large-files",
+      "query": "find large files",
+      "tags": ["files", "storage"],
+      "expect": {
+        "top1_any": ["find", "du", "ncdu", "gdu", "dua", "dust", "fd"],
+        "top3_any": ["find", "du", "ncdu", "gdu", "dua", "dust", "fd"]
+      }
+    },
+    {
+      "id": "bulk-rename",
+      "query": "rename lots of files",
+      "tags": ["files"],
+      "expect": {
+        "top1_any": ["rename", "perl-rename", "mmv", "qmv", "vidir"],
+        "top3_any": ["rename", "perl-rename", "mmv", "qmv", "vidir"]
+      }
+    },
+    {
+      "id": "convert-images",
+      "query": "convert images",
+      "tags": ["media"],
+      "expect": {
+        "top1_any": ["magick", "convert", "vips", "ffmpeg"],
+        "top3_any": ["magick", "convert", "vips", "ffmpeg"]
+      }
+    },
+    {
+      "id": "explain-rg",
+      "query": "what is rg",
+      "tags": ["frame", "entity"],
+      "expect": {
+        "top1_any": ["rg"],
+        "top3_any": ["rg"],
+        "frame": "Explain",
+        "targets_all": ["rg"]
+      }
+    },
+    {
+      "id": "compare-rg-grep",
+      "query": "difference between rg and grep",
+      "tags": ["frame", "entity", "compare"],
+      "expect": {
+        "top10_all": ["rg", "grep"],
+        "frame": "Compare",
+        "targets_all": ["rg", "grep"]
+      }
+    },
+    {
+      "id": "locate-ssh-config",
+      "query": "where is ssh config",
+      "tags": ["frame", "locate"],
+      "expect": {
+        "frame": "Locate",
+        "locations_nonempty": true
+      }
+    }
+  ]
+}

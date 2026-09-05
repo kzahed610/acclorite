@@ -1,0 +1,1757 @@
+{
+  "benchmark_report_schema": 3,
+  "generated_at": "2026-09-05T08:09:50.170986+00:00",
+  "binary": "/home/zahed/acclorite/build/acclorite",
+  "acclorite_version": "acclorite 0.2.0",
+  "corpus": "/home/zahed/acclorite/benchmarks/corpus-v1.json",
+  "corpus_schema_version": 1,
+  "corpus_name": "acclorite-core-arch-v1",
+  "environment": {
+    "platform": "Linux-6.18.42-1-cachyos-lts-x86_64-with-glibc2.44",
+    "python": "3.14.6"
+  },
+  "summary": {
+    "cases_passed": 25,
+    "cases_total": 25,
+    "case_pass_rate": 1.0,
+    "assertions_passed": 65,
+    "assertions_total": 65,
+    "assertion_pass_rate": 1.0,
+    "top1": {
+      "passed": 22,
+      "total": 22,
+      "rate": 1.0
+    },
+    "top3": {
+      "passed": 22,
+      "total": 22,
+      "rate": 1.0
+    },
+    "frame": {
+      "passed": 6,
+      "total": 6,
+      "rate": 1.0
+    },
+    "ambiguity": {
+      "passed": 6,
+      "total": 6,
+      "rate": 1.0
+    },
+    "latency_ms": {
+      "median": 487.1213210008136,
+      "p95": 1524.2164190007315,
+      "max": 2885.973047999869
+    },
+    "profiled_search_ms": {
+      "median": 477.563,
+      "p95": 1514.5331999999999,
+      "max": 2876.495
+    },
+    "stage_timings_ms": {
+      "confidence": {
+        "samples": 25,
+        "median": 0.923,
+        "p95": 6.674999999999999,
+        "max": 13.863
+      },
+      "enricher:pkgfile": {
+        "samples": 25,
+        "median": 51.785,
+        "p95": 101.39739999999995,
+        "max": 111.724
+      },
+      "guidance:man": {
+        "samples": 25,
+        "median": 119.687,
+        "p95": 256.63659999999993,
+        "max": 312.74199999999996
+      },
+      "location-source": {
+        "samples": 1,
+        "median": 2.245,
+        "p95": 2.245,
+        "max": 2.245
+      },
+      "ranking-finalize": {
+        "samples": 25,
+        "median": 28.92,
+        "p95": 466.2821999999994,
+        "max": 829.777
+      },
+      "ranking-preferences": {
+        "samples": 25,
+        "median": 26.703,
+        "p95": 463.5059999999994,
+        "max": 826.477
+      },
+      "ranking-prefilter": {
+        "samples": 25,
+        "median": 28.711,
+        "p95": 490.60899999999936,
+        "max": 822.148
+      },
+      "ranking-remerge": {
+        "samples": 25,
+        "median": 0.418,
+        "p95": 0.5993999999999998,
+        "max": 0.608
+      },
+      "ranking-sort": {
+        "samples": 25,
+        "median": 2.124,
+        "p95": 3.0766,
+        "max": 3.282
+      },
+      "source:arch-packages": {
+        "samples": 25,
+        "median": 27.246,
+        "p95": 450.9473999999998,
+        "max": 656.157
+      },
+      "source:index": {
+        "samples": 25,
+        "median": 175.837,
+        "p95": 265.8475999999999,
+        "max": 301.157
+      }
+    }
+  },
+  "cases": [
+    {
+      "case_id": "search-text",
+      "query": "search text",
+      "tags": [
+        "generic",
+        "search"
+      ],
+      "return_code": 0,
+      "latency_ms": 520.9630449990073,
+      "top1": "rg",
+      "top3": [
+        "rg",
+        "FileCheck",
+        "python-diff-match-patch"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.8057,
+      "frame": "Discover",
+      "search_ms": 511.541,
+      "stage_timings": {
+        "source:index": 179.43,
+        "source:arch-packages": 34.584,
+        "ranking-prefilter": 25.67,
+        "enricher:pkgfile": 65.671,
+        "ranking-remerge": 0.424,
+        "ranking-preferences": 24.458,
+        "ranking-sort": 2.224,
+        "ranking-finalize": 27.112,
+        "guidance:man": 176.143,
+        "confidence": 0.61
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "rg"
+          ],
+          "actual": "rg"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "rg"
+          ],
+          "actual": [
+            "rg",
+            "FileCheck",
+            "python-diff-match-patch"
+          ]
+        },
+        {
+          "name": "ambiguity",
+          "passed": true,
+          "expected": "clear",
+          "actual": "clear"
+        }
+      ]
+    },
+    {
+      "case_id": "search-inside-files",
+      "query": "search inside files recursively",
+      "tags": [
+        "generic",
+        "search"
+      ],
+      "return_code": 0,
+      "latency_ms": 2885.973047999869,
+      "top1": "rg",
+      "top3": [
+        "rg",
+        "fn",
+        "find"
+      ],
+      "ambiguity": "low-confidence",
+      "confidence": 0.58,
+      "frame": "Discover",
+      "search_ms": 2876.495,
+      "stage_timings": {
+        "source:index": 301.157,
+        "source:arch-packages": 656.157,
+        "ranking-prefilter": 822.148,
+        "enricher:pkgfile": 80.013,
+        "ranking-remerge": 0.545,
+        "ranking-preferences": 826.477,
+        "ranking-sort": 2.748,
+        "ranking-finalize": 829.777,
+        "guidance:man": 169.36,
+        "confidence": 13.863
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "rg",
+            "grep"
+          ],
+          "actual": "rg"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "rg",
+            "grep"
+          ],
+          "actual": [
+            "rg",
+            "fn",
+            "find"
+          ]
+        },
+        {
+          "name": "forbid_top1",
+          "passed": true,
+          "expected": [
+            "pdfgrep",
+            "zipgrep"
+          ],
+          "actual": "rg"
+        }
+      ]
+    },
+    {
+      "case_id": "search-pdf-text",
+      "query": "search pdf text",
+      "tags": [
+        "arch",
+        "specialization"
+      ],
+      "return_code": 0,
+      "latency_ms": 370.21006000031775,
+      "top1": "pdfgrep",
+      "top3": [
+        "pdfgrep",
+        "rg",
+        "grep"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.8974,
+      "frame": "Discover",
+      "search_ms": 359.656,
+      "stage_timings": {
+        "source:index": 167.835,
+        "source:arch-packages": 29.594,
+        "ranking-prefilter": 41.193,
+        "enricher:pkgfile": 70.798,
+        "ranking-remerge": 0.453,
+        "ranking-preferences": 43.639,
+        "ranking-sort": 2.419,
+        "ranking-finalize": 46.518,
+        "guidance:man": 0.15,
+        "confidence": 0.985
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "pdfgrep"
+          ],
+          "actual": "pdfgrep"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "pdfgrep"
+          ],
+          "actual": [
+            "pdfgrep",
+            "rg",
+            "grep"
+          ]
+        },
+        {
+          "name": "ambiguity",
+          "passed": true,
+          "expected": "clear",
+          "actual": "clear"
+        },
+        {
+          "name": "min_confidence",
+          "passed": true,
+          "expected": 0.7,
+          "actual": 0.8974
+        }
+      ]
+    },
+    {
+      "case_id": "search-compressed",
+      "query": "search compressed files",
+      "tags": [
+        "specialization",
+        "search"
+      ],
+      "return_code": 0,
+      "latency_ms": 903.5756929988565,
+      "top1": "zipgrep",
+      "top3": [
+        "zipgrep",
+        "ptargrep",
+        "zip"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.7993,
+      "frame": "Discover",
+      "search_ms": 893.838,
+      "stage_timings": {
+        "source:index": 199.661,
+        "source:arch-packages": 464.243,
+        "ranking-prefilter": 55.106,
+        "enricher:pkgfile": 0.648,
+        "ranking-remerge": 0.569,
+        "ranking-preferences": 56.682,
+        "ranking-sort": 2.81,
+        "ranking-finalize": 60.067,
+        "guidance:man": 109.927,
+        "confidence": 1.176
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "lzgrep",
+            "xzgrep",
+            "zgrep",
+            "zstdgrep",
+            "zipgrep"
+          ],
+          "actual": "zipgrep"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "lzgrep",
+            "xzgrep",
+            "zgrep",
+            "zstdgrep",
+            "zipgrep"
+          ],
+          "actual": [
+            "zipgrep",
+            "ptargrep",
+            "zip"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "full-text-search",
+      "query": "full text search",
+      "tags": [
+        "arch",
+        "specialization"
+      ],
+      "return_code": 0,
+      "latency_ms": 785.5941309990158,
+      "top1": "recoll",
+      "top3": [
+        "recoll",
+        "namazu",
+        "python-whoosh"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.8921,
+      "frame": "Discover",
+      "search_ms": 775.815,
+      "stage_timings": {
+        "source:index": 200.451,
+        "source:arch-packages": 36.402,
+        "ranking-prefilter": 202.011,
+        "enricher:pkgfile": 90.335,
+        "ranking-remerge": 0.466,
+        "ranking-preferences": 233.147,
+        "ranking-sort": 3.095,
+        "ranking-finalize": 236.716,
+        "guidance:man": 0.185,
+        "confidence": 6.463
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "recoll",
+            "namazu",
+            "python-whoosh"
+          ],
+          "actual": "recoll"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "recoll",
+            "namazu",
+            "python-whoosh"
+          ],
+          "actual": [
+            "recoll",
+            "namazu",
+            "python-whoosh"
+          ]
+        },
+        {
+          "name": "ambiguity",
+          "passed": true,
+          "expected": "clear",
+          "actual": "clear"
+        }
+      ]
+    },
+    {
+      "case_id": "duplicate-files",
+      "query": "duplicate files",
+      "tags": [
+        "arch",
+        "files"
+      ],
+      "return_code": 0,
+      "latency_ms": 246.53950500032806,
+      "top1": "fdupes",
+      "top3": [
+        "fdupes",
+        "rdfind",
+        "fclones"
+      ],
+      "ambiguity": "competitive",
+      "confidence": 0.7474,
+      "frame": "Discover",
+      "search_ms": 235.134,
+      "stage_timings": {
+        "source:index": 140.525,
+        "source:arch-packages": 15.597,
+        "ranking-prefilter": 18.733,
+        "enricher:pkgfile": 36.36,
+        "ranking-remerge": 0.389,
+        "ranking-preferences": 18.631,
+        "ranking-sort": 1.78,
+        "ranking-finalize": 20.805,
+        "guidance:man": 0.117,
+        "confidence": 0.85
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "fdupes",
+            "rdfind",
+            "fclones",
+            "jdupes"
+          ],
+          "actual": "fdupes"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "fdupes",
+            "rdfind",
+            "fclones",
+            "jdupes"
+          ],
+          "actual": [
+            "fdupes",
+            "rdfind",
+            "fclones"
+          ]
+        },
+        {
+          "name": "forbid_top1",
+          "passed": true,
+          "expected": [
+            "hardlink"
+          ],
+          "actual": "fdupes"
+        },
+        {
+          "name": "ambiguity",
+          "passed": true,
+          "expected": "competitive",
+          "actual": "competitive"
+        }
+      ]
+    },
+    {
+      "case_id": "find-duplicate-files",
+      "query": "find duplicate files",
+      "tags": [
+        "arch",
+        "files"
+      ],
+      "return_code": 0,
+      "latency_ms": 258.87162599974545,
+      "top1": "rdfind",
+      "top3": [
+        "rdfind",
+        "czkawka_cli",
+        "czkawka_gui"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.8693,
+      "frame": "Discover",
+      "search_ms": 248.659,
+      "stage_timings": {
+        "source:index": 158.341,
+        "source:arch-packages": 11.594,
+        "ranking-prefilter": 24.166,
+        "enricher:pkgfile": 22.737,
+        "ranking-remerge": 0.409,
+        "ranking-preferences": 24.577,
+        "ranking-sort": 3.282,
+        "ranking-finalize": 28.274,
+        "guidance:man": 0.115,
+        "confidence": 0.923
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "fdupes",
+            "rdfind",
+            "fclones",
+            "jdupes"
+          ],
+          "actual": "rdfind"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "fdupes",
+            "rdfind",
+            "fclones",
+            "jdupes"
+          ],
+          "actual": [
+            "rdfind",
+            "czkawka_cli",
+            "czkawka_gui"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "disk-usage",
+      "query": "disk usage",
+      "tags": [
+        "storage"
+      ],
+      "return_code": 0,
+      "latency_ms": 483.3230700005515,
+      "top1": "duf",
+      "top3": [
+        "duf",
+        "btop",
+        "ncdu"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.8574,
+      "frame": "Discover",
+      "search_ms": 473.972,
+      "stage_timings": {
+        "source:index": 162.169,
+        "source:arch-packages": 44.179,
+        "ranking-prefilter": 21.964,
+        "enricher:pkgfile": 104.163,
+        "ranking-remerge": 0.423,
+        "ranking-preferences": 21.403,
+        "ranking-sort": 2.048,
+        "ranking-finalize": 23.881,
+        "guidance:man": 114.763,
+        "confidence": 0.652
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "duf",
+            "ncdu",
+            "gdu",
+            "dua",
+            "pdu",
+            "du"
+          ],
+          "actual": "duf"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "duf",
+            "ncdu",
+            "gdu",
+            "dua",
+            "pdu",
+            "du"
+          ],
+          "actual": [
+            "duf",
+            "btop",
+            "ncdu"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "disk-space-human",
+      "query": "what is using all my disk space",
+      "tags": [
+        "storage",
+        "human"
+      ],
+      "return_code": 0,
+      "latency_ms": 487.1213210008136,
+      "top1": "duf",
+      "top3": [
+        "duf",
+        "df",
+        "btop"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.8673,
+      "frame": "Inspect",
+      "search_ms": 477.563,
+      "stage_timings": {
+        "source:index": 175.837,
+        "source:arch-packages": 45.934,
+        "ranking-prefilter": 34.253,
+        "enricher:pkgfile": 68.943,
+        "ranking-remerge": 0.418,
+        "ranking-preferences": 34.188,
+        "ranking-sort": 1.869,
+        "ranking-finalize": 36.481,
+        "guidance:man": 112.441,
+        "confidence": 0.907
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "duf",
+            "ncdu",
+            "gdu",
+            "dua",
+            "pdu",
+            "du",
+            "btop"
+          ],
+          "actual": "duf"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "duf",
+            "ncdu",
+            "gdu",
+            "dua",
+            "pdu",
+            "du",
+            "btop"
+          ],
+          "actual": [
+            "duf",
+            "df",
+            "btop"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "network-connections",
+      "query": "network connections",
+      "tags": [
+        "network"
+      ],
+      "return_code": 0,
+      "latency_ms": 529.0382250004768,
+      "top1": "ss",
+      "top3": [
+        "ss",
+        "nl-list-sockets",
+        "nm-applet"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.8689,
+      "frame": "Inspect",
+      "search_ms": 519.429,
+      "stage_timings": {
+        "source:index": 180.61,
+        "source:arch-packages": 92.827,
+        "ranking-prefilter": 27.646,
+        "enricher:pkgfile": 53.328,
+        "ranking-remerge": 0.436,
+        "ranking-preferences": 26.114,
+        "ranking-sort": 2.365,
+        "ranking-finalize": 28.92,
+        "guidance:man": 133.066,
+        "confidence": 0.55
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "ss"
+          ],
+          "actual": "ss"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "ss"
+          ],
+          "actual": [
+            "ss",
+            "nl-list-sockets",
+            "nm-applet"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "show-network-connections",
+      "query": "show open network connections",
+      "tags": [
+        "network"
+      ],
+      "return_code": 0,
+      "latency_ms": 780.5645810003625,
+      "top1": "ss",
+      "top3": [
+        "ss",
+        "ip",
+        "btop"
+      ],
+      "ambiguity": "low-confidence",
+      "confidence": 0.58,
+      "frame": "Inspect",
+      "search_ms": 770.956,
+      "stage_timings": {
+        "source:index": 230.372,
+        "source:arch-packages": 12.317,
+        "ranking-prefilter": 180.847,
+        "enricher:pkgfile": 10.123,
+        "ranking-remerge": 0.381,
+        "ranking-preferences": 182.479,
+        "ranking-sort": 2.152,
+        "ranking-finalize": 185.016,
+        "guidance:man": 145.352,
+        "confidence": 4.315
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "ss",
+            "lsof",
+            "netstat"
+          ],
+          "actual": "ss"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "ss",
+            "lsof",
+            "netstat"
+          ],
+          "actual": [
+            "ss",
+            "ip",
+            "btop"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "port-owner",
+      "query": "which process is using port 8080",
+      "tags": [
+        "network",
+        "inspect"
+      ],
+      "return_code": 0,
+      "latency_ms": 419.02453700095066,
+      "top1": "fuser",
+      "top3": [
+        "fuser",
+        "btop",
+        "htop"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.8846,
+      "frame": "Inspect",
+      "search_ms": 408.587,
+      "stage_timings": {
+        "source:index": 213.311,
+        "source:arch-packages": 6.297,
+        "ranking-prefilter": 34.462,
+        "enricher:pkgfile": 0.589,
+        "ranking-remerge": 0.325,
+        "ranking-preferences": 29.446,
+        "ranking-sort": 1.63,
+        "ranking-finalize": 31.404,
+        "guidance:man": 119.687,
+        "confidence": 1.045
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "fuser",
+            "ss",
+            "lsof"
+          ],
+          "actual": "fuser"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "fuser",
+            "ss",
+            "lsof"
+          ],
+          "actual": [
+            "fuser",
+            "btop",
+            "htop"
+          ]
+        },
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Inspect",
+          "actual": "Inspect"
+        }
+      ]
+    },
+    {
+      "case_id": "process-monitoring",
+      "query": "process monitoring",
+      "tags": [
+        "process"
+      ],
+      "return_code": 0,
+      "latency_ms": 342.51432299970475,
+      "top1": "btop",
+      "top3": [
+        "btop",
+        "plasma-systemmonitor",
+        "gnome-system-monitor"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.7763,
+      "frame": "Discover",
+      "search_ms": 333.25,
+      "stage_timings": {
+        "source:index": 95.887,
+        "source:arch-packages": 26.831,
+        "ranking-prefilter": 15.332,
+        "enricher:pkgfile": 67.859,
+        "ranking-remerge": 0.313,
+        "ranking-preferences": 15.683,
+        "ranking-sort": 1.29,
+        "ranking-finalize": 17.292,
+        "guidance:man": 107.423,
+        "confidence": 0.886
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "btop",
+            "htop",
+            "btm",
+            "atop",
+            "plasma-systemmonitor",
+            "gnome-system-monitor"
+          ],
+          "actual": "btop"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "btop",
+            "htop",
+            "btm",
+            "atop",
+            "plasma-systemmonitor",
+            "gnome-system-monitor"
+          ],
+          "actual": [
+            "btop",
+            "plasma-systemmonitor",
+            "gnome-system-monitor"
+          ]
+        },
+        {
+          "name": "ambiguity",
+          "passed": true,
+          "expected": "clear",
+          "actual": "clear"
+        },
+        {
+          "name": "min_confidence",
+          "passed": true,
+          "expected": 0.7,
+          "actual": 0.7763
+        }
+      ]
+    },
+    {
+      "case_id": "ram-human",
+      "query": "what is eating RAM",
+      "tags": [
+        "process",
+        "human"
+      ],
+      "return_code": 0,
+      "latency_ms": 521.8818299999839,
+      "top1": "btop",
+      "top3": [
+        "btop",
+        "bpytop",
+        "memusage"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.8847,
+      "frame": "Inspect",
+      "search_ms": 512.321,
+      "stage_timings": {
+        "source:index": 239.342,
+        "source:arch-packages": 22.321,
+        "ranking-prefilter": 30.63,
+        "enricher:pkgfile": 67.004,
+        "ranking-remerge": 0.403,
+        "ranking-preferences": 32.601,
+        "ranking-sort": 2.202,
+        "ranking-finalize": 35.213,
+        "guidance:man": 113.174,
+        "confidence": 2.375
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "btop",
+            "htop",
+            "top",
+            "ps",
+            "free"
+          ],
+          "actual": "btop"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "btop",
+            "htop",
+            "top",
+            "ps",
+            "free"
+          ],
+          "actual": [
+            "btop",
+            "bpytop",
+            "memusage"
+          ]
+        },
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Inspect",
+          "actual": "Inspect"
+        }
+      ]
+    },
+    {
+      "case_id": "watch-cpu",
+      "query": "watch CPU usage",
+      "tags": [
+        "process"
+      ],
+      "return_code": 0,
+      "latency_ms": 450.6991250000283,
+      "top1": "btop",
+      "top3": [
+        "btop",
+        "bpytop",
+        "missioncenter"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.8773,
+      "frame": "Inspect",
+      "search_ms": 438.439,
+      "stage_timings": {
+        "source:index": 230.598,
+        "source:arch-packages": 14.742,
+        "ranking-prefilter": 28.711,
+        "enricher:pkgfile": 25.838,
+        "ranking-remerge": 0.37,
+        "ranking-preferences": 26.703,
+        "ranking-sort": 1.769,
+        "ranking-finalize": 28.848,
+        "guidance:man": 106.612,
+        "confidence": 0.972
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "btop",
+            "htop",
+            "top",
+            "watch",
+            "mpstat",
+            "atop"
+          ],
+          "actual": "btop"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "btop",
+            "htop",
+            "top",
+            "watch",
+            "mpstat",
+            "atop"
+          ],
+          "actual": [
+            "btop",
+            "bpytop",
+            "missioncenter"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "archive-ambiguous",
+      "query": "archive files",
+      "tags": [
+        "archive",
+        "ambiguity"
+      ],
+      "return_code": 0,
+      "latency_ms": 448.7128569999186,
+      "top1": "cpio",
+      "top3": [
+        "cpio",
+        "ark",
+        "zip"
+      ],
+      "ambiguity": "ambiguous",
+      "confidence": 0.6215,
+      "frame": "Discover",
+      "search_ms": 439.152,
+      "stage_timings": {
+        "source:index": 144.415,
+        "source:arch-packages": 49.425,
+        "ranking-prefilter": 23.071,
+        "enricher:pkgfile": 71.585,
+        "ranking-remerge": 0.451,
+        "ranking-preferences": 22.749,
+        "ranking-sort": 2.114,
+        "ranking-finalize": 25.319,
+        "guidance:man": 122.311,
+        "confidence": 0.632
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "ambiguity",
+          "passed": true,
+          "expected": "ambiguous",
+          "actual": "ambiguous"
+        },
+        {
+          "name": "clarification_ids",
+          "passed": true,
+          "expected": [
+            "archive-create",
+            "archive-extract",
+            "archive-manage"
+          ],
+          "actual": [
+            "archive-create",
+            "archive-extract",
+            "archive-manage"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "compress-folder",
+      "query": "compress a folder",
+      "tags": [
+        "archive"
+      ],
+      "return_code": 0,
+      "latency_ms": 470.72508499877586,
+      "top1": "zip",
+      "top3": [
+        "zip",
+        "unzip",
+        "ark"
+      ],
+      "ambiguity": "competitive",
+      "confidence": 0.7223,
+      "frame": "Discover",
+      "search_ms": 461.228,
+      "stage_timings": {
+        "source:index": 164.226,
+        "source:arch-packages": 8.82,
+        "ranking-prefilter": 21.639,
+        "enricher:pkgfile": 10.555,
+        "ranking-remerge": 0.344,
+        "ranking-preferences": 21.867,
+        "ranking-sort": 1.668,
+        "ranking-finalize": 23.883,
+        "guidance:man": 229.623,
+        "confidence": 0.673
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "tar",
+            "zip",
+            "7z",
+            "7zz",
+            "ark"
+          ],
+          "actual": "zip"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "tar",
+            "zip",
+            "7z",
+            "7zz",
+            "ark"
+          ],
+          "actual": [
+            "zip",
+            "unzip",
+            "ark"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "extract-targz",
+      "query": "extract a tar.gz",
+      "tags": [
+        "archive"
+      ],
+      "return_code": 0,
+      "latency_ms": 303.5491659993568,
+      "top1": "tar",
+      "top3": [
+        "tar",
+        "ptargrep",
+        "haskell-tar-conduit"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.7737,
+      "frame": "Discover",
+      "search_ms": 293.709,
+      "stage_timings": {
+        "source:index": 64.383,
+        "source:arch-packages": 5.606,
+        "ranking-prefilter": 12.691,
+        "enricher:pkgfile": 25.972,
+        "ranking-remerge": 0.173,
+        "ranking-preferences": 13.139,
+        "ranking-sort": 0.729,
+        "ranking-finalize": 14.048,
+        "guidance:man": 168.366,
+        "confidence": 1.346
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "tar",
+            "bsdtar",
+            "ark"
+          ],
+          "actual": "tar"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "tar",
+            "bsdtar",
+            "ark"
+          ],
+          "actual": [
+            "tar",
+            "ptargrep",
+            "haskell-tar-conduit"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "compare-folders",
+      "query": "compare two folders",
+      "tags": [
+        "files",
+        "compare"
+      ],
+      "return_code": 0,
+      "latency_ms": 142.9265039987513,
+      "top1": "meld",
+      "top3": [
+        "meld",
+        "FreeFileSync",
+        "diffoscope"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.8663,
+      "frame": "Discover",
+      "search_ms": 133.474,
+      "stage_timings": {
+        "source:index": 88.94,
+        "source:arch-packages": 6.639,
+        "ranking-prefilter": 10.376,
+        "enricher:pkgfile": 13.976,
+        "ranking-remerge": 0.218,
+        "ranking-preferences": 10.358,
+        "ranking-sort": 0.91,
+        "ranking-finalize": 11.492,
+        "guidance:man": 0.132,
+        "confidence": 0.539
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "diff",
+            "meld",
+            "rsync",
+            "kompare"
+          ],
+          "actual": "meld"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "diff",
+            "meld",
+            "rsync",
+            "kompare"
+          ],
+          "actual": [
+            "meld",
+            "FreeFileSync",
+            "diffoscope"
+          ]
+        },
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Discover",
+          "actual": "Discover"
+        }
+      ]
+    },
+    {
+      "case_id": "large-files",
+      "query": "find large files",
+      "tags": [
+        "files",
+        "storage"
+      ],
+      "return_code": 0,
+      "latency_ms": 1482.9225989997212,
+      "top1": "find",
+      "top3": [
+        "find",
+        "fd",
+        "rg"
+      ],
+      "ambiguity": "low-confidence",
+      "confidence": 0.5559,
+      "frame": "Discover",
+      "search_ms": 1473.71,
+      "stage_timings": {
+        "source:index": 193.9,
+        "source:arch-packages": 397.765,
+        "ranking-prefilter": 304.165,
+        "enricher:pkgfile": 51.785,
+        "ranking-remerge": 0.607,
+        "ranking-preferences": 303.022,
+        "ranking-sort": 3.003,
+        "ranking-finalize": 306.639,
+        "guidance:man": 214.275,
+        "confidence": 1.77
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "find",
+            "du",
+            "ncdu",
+            "gdu",
+            "dua",
+            "dust",
+            "fd"
+          ],
+          "actual": "find"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "find",
+            "du",
+            "ncdu",
+            "gdu",
+            "dua",
+            "dust",
+            "fd"
+          ],
+          "actual": [
+            "find",
+            "fd",
+            "rg"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "bulk-rename",
+      "query": "rename lots of files",
+      "tags": [
+        "files"
+      ],
+      "return_code": 0,
+      "latency_ms": 898.2338340010756,
+      "top1": "rename",
+      "top3": [
+        "rename",
+        "mv",
+        "mren"
+      ],
+      "ambiguity": "competitive",
+      "confidence": 0.7711,
+      "frame": "Discover",
+      "search_ms": 888.732,
+      "stage_timings": {
+        "source:index": 176.083,
+        "source:arch-packages": 19.569,
+        "ranking-prefilter": 278.153,
+        "enricher:pkgfile": 30.071,
+        "ranking-remerge": 0.424,
+        "ranking-preferences": 259.996,
+        "ranking-sort": 2.244,
+        "ranking-finalize": 262.67,
+        "guidance:man": 115.753,
+        "confidence": 3.62
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "rename",
+            "perl-rename",
+            "mmv",
+            "qmv",
+            "vidir"
+          ],
+          "actual": "rename"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "rename",
+            "perl-rename",
+            "mmv",
+            "qmv",
+            "vidir"
+          ],
+          "actual": [
+            "rename",
+            "mv",
+            "mren"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "convert-images",
+      "query": "convert images",
+      "tags": [
+        "media"
+      ],
+      "return_code": 0,
+      "latency_ms": 1534.5398740009841,
+      "top1": "convert",
+      "top3": [
+        "convert",
+        "sixel2png",
+        "ppmtoy4m"
+      ],
+      "ambiguity": "competitive",
+      "confidence": 0.7607,
+      "frame": "Discover",
+      "search_ms": 1524.739,
+      "stage_timings": {
+        "source:index": 272.474,
+        "source:arch-packages": 51.558,
+        "ranking-prefilter": 537.22,
+        "enricher:pkgfile": 27.136,
+        "ranking-remerge": 0.434,
+        "ranking-preferences": 503.627,
+        "ranking-sort": 2.124,
+        "ranking-finalize": 506.193,
+        "guidance:man": 120.344,
+        "confidence": 6.728
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "magick",
+            "convert",
+            "vips",
+            "ffmpeg"
+          ],
+          "actual": "convert"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "magick",
+            "convert",
+            "vips",
+            "ffmpeg"
+          ],
+          "actual": [
+            "convert",
+            "sixel2png",
+            "ppmtoy4m"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "explain-rg",
+      "query": "what is rg",
+      "tags": [
+        "frame",
+        "entity"
+      ],
+      "return_code": 0,
+      "latency_ms": 241.35827499958395,
+      "top1": "rg",
+      "top3": [
+        "rg"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9848,
+      "frame": "Explain",
+      "search_ms": 232.005,
+      "stage_timings": {
+        "source:index": 27.546,
+        "source:arch-packages": 3.184,
+        "ranking-prefilter": 0.216,
+        "enricher:pkgfile": 28.619,
+        "ranking-remerge": 0.02,
+        "ranking-preferences": 0.231,
+        "ranking-sort": 0.012,
+        "ranking-finalize": 0.268,
+        "guidance:man": 171.553,
+        "confidence": 0.07
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "rg"
+          ],
+          "actual": "rg"
+        },
+        {
+          "name": "top3_any",
+          "passed": true,
+          "expected": [
+            "rg"
+          ],
+          "actual": [
+            "rg"
+          ]
+        },
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Explain",
+          "actual": "Explain"
+        },
+        {
+          "name": "targets_all",
+          "passed": true,
+          "expected": [
+            "rg"
+          ],
+          "actual": [
+            "rg"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "compare-rg-grep",
+      "query": "difference between rg and grep",
+      "tags": [
+        "frame",
+        "entity",
+        "compare"
+      ],
+      "return_code": 0,
+      "latency_ms": 531.0770140004024,
+      "top1": "rg",
+      "top3": [
+        "rg",
+        "grep"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9721,
+      "frame": "Compare",
+      "search_ms": 521.816,
+      "stage_timings": {
+        "source:index": 82.703,
+        "source:arch-packages": 27.246,
+        "ranking-prefilter": 18.405,
+        "enricher:pkgfile": 61.102999999999994,
+        "ranking-remerge": 0.101,
+        "ranking-preferences": 17.958,
+        "ranking-sort": 0.166,
+        "ranking-finalize": 18.232,
+        "guidance:man": 312.74199999999996,
+        "confidence": 0.348
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top10_all",
+          "passed": true,
+          "expected": [
+            "rg",
+            "grep"
+          ],
+          "actual": [
+            "rg",
+            "grep"
+          ]
+        },
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Compare",
+          "actual": "Compare"
+        },
+        {
+          "name": "targets_all",
+          "passed": true,
+          "expected": [
+            "rg",
+            "grep"
+          ],
+          "actual": [
+            "rg",
+            "grep"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "locate-ssh-config",
+      "query": "where is ssh config",
+      "tags": [
+        "frame",
+        "locate"
+      ],
+      "return_code": 0,
+      "latency_ms": 734.7584510007437,
+      "top1": "ssh",
+      "top3": [
+        "ssh",
+        "ssh-audit",
+        "ssh-keyscan"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9848,
+      "frame": "Locate",
+      "search_ms": 725.546,
+      "stage_timings": {
+        "location-source": 2.245,
+        "source:index": 167.601,
+        "source:arch-packages": 94.177,
+        "ranking-prefilter": 40.627,
+        "enricher:pkgfile": 111.724,
+        "ranking-remerge": 0.608,
+        "ranking-preferences": 39.718999999999994,
+        "ranking-sort": 2.468,
+        "ranking-finalize": 42.801,
+        "guidance:man": 263.39,
+        "confidence": 0.427
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Locate",
+          "actual": "Locate"
+        },
+        {
+          "name": "locations_nonempty",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        }
+      ]
+    }
+  ]
+}

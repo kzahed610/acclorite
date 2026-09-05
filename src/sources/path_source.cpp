@@ -9,7 +9,9 @@
 
 #include <unistd.h>
 
+#include "acclorite/query/fuzzy.hpp"
 #include "acclorite/query/lexicon.hpp"
+#include "acclorite/ranking/evidence.hpp"
 #include "acclorite/system/executable.hpp"
 
 namespace acclorite {
@@ -83,6 +85,13 @@ double PathSource::score_name(const Query& query, const std::string& command) {
         if (command_lower.find(term) != std::string::npos) {
             return 0.62;
         }
+
+        // Single-token queries are often half-remembered command names. Keep this
+        // below exact/prefix matches so typo tolerance never outranks certainty.
+        const double similarity = query::fuzzy::similarity(command_lower, term);
+        if (similarity >= 0.72) {
+            return std::min(0.76, 0.32 + (0.58 * similarity));
+        }
         return 0.0;
     }
 
@@ -146,12 +155,22 @@ std::vector<Candidate> PathSource::catalog() {
                 .path = path.string(),
                 .summary = "Executable available in PATH",
                 .source = "path",
+                .package = {},
+                .repository = {},
+                .package_version = {},
                 .installed = true,
                 .repository_available = false,
                 .cli_capable = true,
                 .gui_capable = false,
                 .matched_terms = {},
+                .provided_commands = {},
+                .descriptive_evidence = {},
+                .examples = {},
+                .learning_resources = {},
+                .evidence_trace = {},
+                .base_merge_trace = {},
                 .score = 0.0,
+                .ranking = std::nullopt,
             });
         }
     }
@@ -163,7 +182,13 @@ std::vector<Candidate> PathSource::search(const Query& query) const {
     std::vector<Candidate> result;
     for (auto candidate : catalog()) {
         candidate.score = score_name(query, candidate.command);
+        candidate.semantic_fit = candidate.score;
         if (candidate.score > 0.0) {
+            if (query.explain_ranking) {
+                candidate.evidence_trace.push_back(ranking::opaque_evidence(
+                    "path", "command-name match", candidate.score
+                ));
+            }
             result.push_back(std::move(candidate));
         }
     }

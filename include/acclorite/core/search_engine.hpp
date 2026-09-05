@@ -7,17 +7,31 @@
 #include "acclorite/core/query.hpp"
 #include "acclorite/core/result.hpp"
 #include "acclorite/sources/source.hpp"
+#include "acclorite/sources/enricher.hpp"
+#include "acclorite/sources/location_source.hpp"
+#include "acclorite/guidance/provider.hpp"
 
 namespace acclorite {
 
 class SearchEngine {
 public:
     void add_source(std::unique_ptr<KnowledgeSource> source);
+    void add_location_source(std::unique_ptr<LocationSource> source);
+    void add_enricher(std::unique_ptr<CandidateEnricher> enricher);
+    void add_guidance_provider(std::unique_ptr<GuidanceProvider> provider);
 
-    [[nodiscard]] SearchResult search(const Query& query, std::size_t limit = 10) const;
+    [[nodiscard]] SearchResult search(
+        const Query& query,
+        std::size_t limit = 10,
+        bool explain_ranking = false,
+        bool profile = false
+    ) const;
 
 private:
     std::vector<std::unique_ptr<KnowledgeSource>> sources_;
+    std::vector<std::unique_ptr<LocationSource>> location_sources_;
+    std::vector<std::unique_ptr<CandidateEnricher>> enrichers_;
+    std::vector<std::unique_ptr<GuidanceProvider>> guidance_providers_;
 };
 
 } // namespace acclorite
