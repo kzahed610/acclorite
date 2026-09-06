@@ -4,7 +4,7 @@ Acclorite is a local-first Linux tool-discovery assistant.
 
 > I know what I want to do — just tell me what Linux tool I should be looking at.
 
-Acclorite **v0.2.0** is entirely deterministic: **no LLM is involved.**
+Acclorite **v0.2.4** is entirely deterministic: **no LLM is involved.**
 
 Acclorite now also recognizes broad query frames such as Discover, Explain, Locate, Inspect, Modify, Compare, and Diagnose. Frame recognition is weighted and whole-query-aware rather than being a brittle `what`/`where` prefix parser.
 
@@ -94,6 +94,43 @@ or, when `XDG_CACHE_HOME` is unset:
 ~/.cache/acclorite/index.db
 ```
 
+
+
+## v0.2.4
+
+`v0.2.4` closes Milestone 6 with `CuratedGuidanceProvider`, a deliberately tiny bundled fallback for guidance that is useful but not naturally guaranteed to exist in local man, Info, or TLDR sources. The provider runs after all three higher-priority documentation providers and never participates in recall, ranking, score, confidence, package selection, or source provenance.
+
+Curated records live in `data/curated-guidance.tsv` rather than C++. Every accepted row names an exact command, has a stable record id, points at an upstream HTTP(S) source, and carries an ISO verification date. The starter corpus is intentionally small (`rg`, `fzf`, `bat`, `btop`, `fd`) and only includes syntax/resources that were manually checked against upstream project documentation. Malformed or undated rows are ignored. Exact command matching prevents one tool's metadata from leaking into similarly named binaries.
+
+Source priority remains conservative: curated learning resources may be appended whenever an exact record exists, but curated examples are emitted only when man, Info, and local TLDR have all failed to produce an example. Search JSON advances to **schema 15** and adds `verified_by` plus `verified_on` to every example/resource record. Existing providers leave those fields empty; curated records set `verified_by` to `acclorite-project` and expose the review date. `verified` therefore continues to mean source-backed text, while schema 15 finally makes Acclorite-maintained assertions auditable for freshness. The provider profiles independently as `guidance:curated`.
+
+The data file is copied into the build tree and installed to `${CMAKE_INSTALL_DATADIR}/acclorite/curated-guidance.tsv`; `ACCLORITE_CURATED_GUIDANCE` can override the path for testing or downstream packaging; override records are deliberately marked `verified_by = local-override` rather than impersonating the bundled Acclorite corpus. This slice deliberately does not introduce version-scoped curated syntax: if an entry cannot reasonably be treated as stable across supported versions, it should be omitted until version applicability is represented explicitly.
+
+## v0.2.3
+
+`v0.2.3` adds `TldrGuidanceProvider` as the next lower-priority post-ranking guidance source. The provider is deliberately **local-cache-only**: it never executes `tldr`, never updates a cache, and never performs network access. Acclorite discovers conventional tealdeer and TLDR cache roots, including tealdeer's `directories.cache_dir` configuration, then looks up only the exact current Linux/common page for the candidate.
+
+A cached page is accepted only when the exact `<command>.md` file exists and its first Markdown heading names the same command. Acclorite then exposes the local TLDR page as a learning resource and, only when man/Info did not already produce an example, copies at most two command-looking inline-code examples from that page. TLDR placeholder syntax such as `{{path/to/file}}` is preserved exactly; syntax is never filled in or synthesized.
+
+TLDR provenance remains distinct from upstream manuals. `verified: true` means Acclorite verified the exact local source file and copied the example from it; it is **not** an endorsement that community-maintained TLDR content is authoritative or safe for every environment. Tealdeer custom pages/patches are excluded from TLDR provenance for now because user-authored extensions need a separate provenance policy. The provider profiles independently as `guidance:tldr`, does not become ranking evidence, and leaves search JSON at schema 14.
+
+
+## v0.2.2
+
+`v0.2.2` hardens the local Info guidance path after real CachyOS profiling showed that negative `info --where <tool>` probes dominated the new provider's latency: the v0.2.1 benchmark remained 25/25 and 65/65 correct, but `guidance:info` reached roughly 231 ms p50 and pushed end-to-end p50 to roughly 812 ms.
+
+Info guidance now performs a cheap local plausibility check before spawning GNU Info. It accepts an exact command-labelled entry from local Info `dir` menus or an exact dedicated `<command>.info*` file in standard/`INFOPATH` documentation directories. Only plausible topics proceed to the existing `info --where <tool>` verification, so positive resources remain externally verified while obvious misses avoid the expensive process search. The prefilter is deliberately guidance-only and cannot alter retrieval, ranking, scores, or confidence.
+
+This also makes Acclorite stricter than relying on GNU Info lookup alone: GNU Info may perform case-insensitive substring menu matching, while the prefilter requires an exact menu label (case-insensitive) or exact manual basename before Acclorite claims an Info learning resource. Search JSON remains schema 14.
+
+
+## v0.2.1
+
+`v0.2.1` adds a second post-ranking guidance source: locally installed GNU Info documentation. `InfoGuidanceProvider` first performs an exact local topic-location probe with `info --where <tool>`; a candidate receives Info guidance only when that probe proves the documentation exists locally. The probe is guidance-only and never becomes ranking evidence.
+
+When available, Acclorite exposes `info <tool>` as a verified learning resource. Source priority remains conservative: if a higher-priority provider such as local man documentation already found a verified example, Info does not render the full manual merely to duplicate examples. If no earlier example exists, Acclorite renders the selected local Info node and extracts at most two command-looking lines from an explicit Example/Examples section. Missing or unparseable examples remain empty rather than being synthesized.
+
+The guidance schema is unchanged at search JSON schema 14. Profiling exposes the provider independently as `guidance:info`, so the additional local documentation cost can be measured separately from retrieval and ranking. The frozen `acclorite-core-arch-v1` ranking corpus remains unchanged.
 
 
 ## v0.2.0

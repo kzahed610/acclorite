@@ -30,6 +30,8 @@ struct UsageExample {
     GuidanceSourceKind source_kind{GuidanceSourceKind::Man};
     std::string source_reference;
     bool verified{true};
+    std::string verified_by;
+    std::string verified_on;
 };
 
 struct LearningResource {
@@ -38,6 +40,8 @@ struct LearningResource {
     GuidanceSourceKind source_kind{GuidanceSourceKind::Man};
     std::string source_reference;
     bool verified{true};
+    std::string verified_by;
+    std::string verified_on;
 };
 
 struct GuidanceBundle {

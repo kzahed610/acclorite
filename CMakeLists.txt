@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(acclorite VERSION 0.2.0 LANGUAGES CXX)
+project(acclorite VERSION 0.2.4 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,6 +10,16 @@ option(ACCLORITE_BUILD_TESTS "Build Acclorite tests" ON)
 find_package(SQLite3 QUIET)
 find_package(Python3 COMPONENTS Interpreter QUIET)
 find_package(Threads REQUIRED)
+include(GNUInstallDirs)
+
+set(ACCLORITE_CURATED_GUIDANCE_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/data/curated-guidance.tsv")
+set(ACCLORITE_CURATED_GUIDANCE_BUILD "${CMAKE_CURRENT_BINARY_DIR}/share/acclorite/curated-guidance.tsv")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/share/acclorite")
+configure_file(
+    "${ACCLORITE_CURATED_GUIDANCE_SOURCE}"
+    "${ACCLORITE_CURATED_GUIDANCE_BUILD}"
+    COPYONLY
+)
 
 add_library(acclorite_core STATIC
     src/core/query.cpp
@@ -27,6 +37,9 @@ add_library(acclorite_core STATIC
     src/ranking/preference.cpp
     src/ranking/confidence.cpp
     src/guidance/man_provider.cpp
+    src/guidance/info_provider.cpp
+    src/guidance/tldr_provider.cpp
+    src/guidance/curated_provider.cpp
     src/sources/path_source.cpp
     src/sources/desktop_source.cpp
     src/sources/man_source.cpp
@@ -39,6 +52,10 @@ add_library(acclorite_core STATIC
 
 target_include_directories(acclorite_core PUBLIC include)
 target_link_libraries(acclorite_core PUBLIC Threads::Threads)
+target_compile_definitions(acclorite_core PRIVATE
+    ACCLORITE_CURATED_GUIDANCE_BUILD_FILE="${ACCLORITE_CURATED_GUIDANCE_BUILD}"
+    ACCLORITE_CURATED_GUIDANCE_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/acclorite/curated-guidance.tsv"
+)
 
 if(SQLite3_FOUND)
     target_sources(acclorite_core PRIVATE src/sources/index_source.cpp)
@@ -77,7 +94,8 @@ if(Python3_Interpreter_FOUND)
     )
 endif()
 
-install(TARGETS acclorite RUNTIME DESTINATION bin)
+install(TARGETS acclorite RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES "${ACCLORITE_CURATED_GUIDANCE_SOURCE}" DESTINATION ${CMAKE_INSTALL_DATADIR}/acclorite)
 
 if(ACCLORITE_BUILD_TESTS)
     enable_testing()

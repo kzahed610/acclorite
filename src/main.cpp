@@ -19,9 +19,12 @@
 #include "acclorite/sources/path_source.hpp"
 #include "acclorite/sources/pkgfile_enricher.hpp"
 #include "acclorite/guidance/man_provider.hpp"
+#include "acclorite/guidance/info_provider.hpp"
+#include "acclorite/guidance/tldr_provider.hpp"
+#include "acclorite/guidance/curated_provider.hpp"
 
 #ifndef ACCLORITE_VERSION
-#define ACCLORITE_VERSION "0.2.0"
+#define ACCLORITE_VERSION "0.2.4"
 #endif
 
 namespace {
@@ -173,6 +176,21 @@ int main(int argc, char** argv) {
     auto man_guidance = std::make_unique<acclorite::ManGuidanceProvider>();
     if (man_guidance->available()) {
         engine.add_guidance_provider(std::move(man_guidance));
+    }
+
+    auto info_guidance = std::make_unique<acclorite::InfoGuidanceProvider>();
+    if (info_guidance->available()) {
+        engine.add_guidance_provider(std::move(info_guidance));
+    }
+
+    auto tldr_guidance = std::make_unique<acclorite::TldrGuidanceProvider>();
+    if (tldr_guidance->available()) {
+        engine.add_guidance_provider(std::move(tldr_guidance));
+    }
+
+    auto curated_guidance = std::make_unique<acclorite::CuratedGuidanceProvider>();
+    if (curated_guidance->available()) {
+        engine.add_guidance_provider(std::move(curated_guidance));
     }
 
     const acclorite::SearchResult result = engine.search(query, 10, explain_ranking, profile);

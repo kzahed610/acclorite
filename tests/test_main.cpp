@@ -31,6 +31,9 @@
 #include "acclorite/sources/path_source.hpp"
 #include "acclorite/sources/pkgfile_enricher.hpp"
 #include "acclorite/guidance/man_provider.hpp"
+#include "acclorite/guidance/info_provider.hpp"
+#include "acclorite/guidance/tldr_provider.hpp"
+#include "acclorite/guidance/curated_provider.hpp"
 #include "acclorite/guidance/provider.hpp"
 
 namespace {
@@ -164,6 +167,28 @@ void write_pkgfile_fixture(const std::filesystem::path& directory, const std::st
         script += "printf '%s\\n' \"" + escaped + "\"\n";
     }
     write_executable(directory / "pkgfile", script);
+}
+
+void write_info_page_fixture(const std::filesystem::path& directory, const std::string& output) {
+    std::string script =
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"--where\" ]; then\n"
+        "  printf '%s\\n' '/tmp/tool.info'\n"
+        "  exit 0\n"
+        "fi\n";
+    std::istringstream lines(output);
+    std::string line;
+    while (std::getline(lines, line)) {
+        std::string escaped;
+        for (const char ch : line) {
+            if (ch == '\\' || ch == '"' || ch == '$' || ch == '`') {
+                escaped.push_back('\\');
+            }
+            escaped.push_back(ch);
+        }
+        script += "printf '%s\\n' \"" + escaped + "\"\n";
+    }
+    write_executable(directory / "info", script);
 }
 void write_man_page_fixture(const std::filesystem::path& directory, const std::string& output) {
     std::string script = "#!/bin/sh\n";
@@ -3450,7 +3475,7 @@ void test_search_engine_attaches_confidence_without_changing_ranking() {
     acclorite::JsonRenderer{}.render(profiled, profiled_json);
     expect(profiled_json.str().find("\"timing\": {") != std::string::npos,
            "profiled JSON exposes timing diagnostics");
-    expect(profiled_json.str().find("\"schema_version\": 14") != std::string::npos,
+    expect(profiled_json.str().find("\"schema_version\": 15") != std::string::npos,
            "profiled JSON uses performance-aware schema version");
 
     std::ostringstream terminal;
@@ -3584,6 +3609,386 @@ void test_man_guidance_extracts_only_source_backed_examples() {
     std::filesystem::remove_all(temp);
 }
 
+
+void test_info_guidance_is_verified_and_falls_back_after_man() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-info-guidance-test";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+    const auto info_root = temp / "share/info";
+    std::filesystem::create_directories(info_root);
+    {
+        std::ofstream menu(info_root / "dir");
+        menu << "* tool: (tool)Top. Fixture tool manual.\n";
+    }
+    write_info_page_fixture(
+        temp,
+        "File: tool.info,  Node: Top\n"
+        "1 Examples\n"
+        "**********\n"
+        "    tool --from-info ./src\n"
+        "    prose mentioning tool is not accepted\n"
+        "    $ tool --json ./src\n"
+        "2 Options\n"
+        "*********\n"
+        "    --help\n"
+    );
+
+    {
+        ScopedPath scoped_path(temp);
+        ScopedEnv scoped_infopath("INFOPATH", info_root.string());
+        acclorite::InfoGuidanceProvider provider;
+        expect(provider.available(), "info guidance provider detects local info executable");
+
+        acclorite::Candidate candidate{
+            .command = "tool",
+            .summary = "fixture",
+            .source = "path+man",
+            .installed = true,
+            .cli_capable = true,
+        };
+        const auto bundle = provider.guide(candidate);
+        expect(bundle.learning_resources.size() == 1,
+               "verified local Info topic creates one learning resource");
+        expect(bundle.examples.size() == 2,
+               "Info fallback extracts only command-looking lines from explicit examples section");
+        if (bundle.examples.size() >= 2) {
+            expect(bundle.examples[0].text == "tool --from-info ./src",
+                   "Info guidance preserves source-backed command text");
+            expect(bundle.examples[1].text == "tool --json ./src",
+                   "Info guidance strips a shell prompt without inventing syntax");
+            expect(bundle.examples[0].source_reference == "info:tool" && bundle.examples[0].verified,
+                   "Info example carries explicit verified provenance");
+        }
+
+        candidate.examples.push_back(acclorite::UsageExample{
+            .text = "tool --from-man",
+            .source_kind = acclorite::GuidanceSourceKind::Man,
+            .source_reference = "man:tool",
+            .verified = true,
+        });
+        const auto lower_priority = provider.guide(candidate);
+        expect(lower_priority.learning_resources.size() == 1,
+               "Info remains available as a learning resource after man examples exist");
+        expect(lower_priority.examples.empty(),
+               "Info does not duplicate lower-priority example extraction when man already succeeded");
+
+        candidate.command = "missing-tool";
+        candidate.examples.clear();
+        const auto cheap_miss = provider.guide(candidate);
+        expect(cheap_miss.examples.empty() && cheap_miss.learning_resources.empty(),
+               "Info guidance rejects an absent local topic before invoking the expensive exact probe");
+
+        {
+            std::ofstream dedicated(info_root / "solo.info.gz");
+            dedicated << "fixture";
+        }
+        candidate.command = "solo";
+        const auto dedicated_manual = provider.guide(candidate);
+        expect(dedicated_manual.learning_resources.size() == 1,
+               "Info prefilter accepts an exact dedicated .info manual even without a dir menu entry");
+
+        candidate.command = "tool";
+        candidate.installed = false;
+        candidate.examples.clear();
+        const auto not_local = provider.guide(candidate);
+        expect(not_local.examples.empty() && not_local.learning_resources.empty(),
+               "Info guidance refuses local documentation for a non-installed candidate");
+
+        candidate.installed = true;
+        candidate.learning_resources = {acclorite::LearningResource{
+            .label = "Local Info manual",
+            .target = "info tool",
+            .source_kind = acclorite::GuidanceSourceKind::Info,
+            .source_reference = "info:tool",
+            .verified = true,
+        }};
+        acclorite::SearchResult info_only_result;
+        info_only_result.candidates.push_back(candidate);
+        std::ostringstream info_only_terminal;
+        acclorite::TerminalRenderer{}.render(info_only_result, info_only_terminal);
+        expect(info_only_terminal.str().find("None found in current local documentation.") != std::string::npos,
+               "terminal preserves explicit no-example messaging for Info-only guidance");
+
+        write_executable(temp / "info", "#!/bin/sh\nexit 0\n");
+        candidate.learning_resources.clear();
+        const auto unverified_topic = provider.guide(candidate);
+        expect(unverified_topic.examples.empty() && unverified_topic.learning_resources.empty(),
+               "Info guidance requires a non-empty exact topic location before claiming provenance");
+    }
+    std::filesystem::remove_all(temp);
+}
+
+void test_tldr_guidance_reads_exact_local_cache_without_spawning_client() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-tldr-guidance-test";
+    std::filesystem::remove_all(temp);
+    const auto bin = temp / "bin";
+    const auto cache = temp / "cache";
+    const auto pages = cache / "tldr-pages/pages.en/common";
+    const auto marker = temp / "tldr-invoked";
+    std::filesystem::create_directories(bin);
+    std::filesystem::create_directories(pages);
+
+    write_executable(
+        bin / "tldr",
+        "#!/bin/sh\n"
+        "printf '%s\\n' invoked >> \"$TLDR_TEST_MARKER\"\n"
+        "exit 99\n"
+    );
+    {
+        std::ofstream page(pages / "tool.md");
+        page << "# tool\n\n"
+                "> Fixture community page.\n\n"
+                "- Scan a path:\n\n"
+                "`tool --scan {{path/to/files}}`\n\n"
+                "- This code line is not the documented command:\n\n"
+                "`printf 'tool'`\n\n"
+                "- Run with privileges:\n\n"
+                "`sudo tool --json {{path/to/files}}`\n";
+    }
+
+    {
+        ScopedPath scoped_path(bin);
+        ScopedEnv home("HOME", (temp / "home").string());
+        ScopedEnv xdg_cache("XDG_CACHE_HOME", (temp / "xdg-cache").string());
+        ScopedEnv xdg_data("XDG_DATA_DIRS", (temp / "data").string());
+        ScopedEnv language("LANGUAGE", "");
+        ScopedEnv lang("LANG", "en_US.UTF-8");
+        ScopedEnv tealdeer_cache("TEALDEER_CACHE_DIR", cache.string());
+        ScopedEnv tealdeer_config("TEALDEER_CONFIG_DIR", (temp / "config").string());
+        ScopedEnv invoked_marker("TLDR_TEST_MARKER", marker.string());
+
+        acclorite::TldrGuidanceProvider provider;
+        expect(provider.available(), "TLDR guidance detects a local cache without invoking the client");
+
+        acclorite::Candidate candidate{
+            .command = "tool",
+            .summary = "fixture",
+            .source = "package",
+            .installed = false,
+            .repository_available = true,
+            .cli_capable = true,
+        };
+        const auto bundle = provider.guide(candidate);
+        expect(bundle.learning_resources.size() == 1,
+               "exact local TLDR page creates one source-backed learning resource");
+        expect(bundle.examples.size() == 2,
+               "TLDR fallback extracts at most two command code lines from the exact cached page");
+        if (bundle.examples.size() >= 2) {
+            expect(bundle.examples[0].text == "tool --scan {{path/to/files}}",
+                   "TLDR guidance preserves upstream placeholder syntax verbatim");
+            expect(bundle.examples[1].text == "sudo tool --json {{path/to/files}}",
+                   "TLDR guidance accepts conservative sudo-prefixed examples");
+            expect(bundle.examples[0].source_kind == acclorite::GuidanceSourceKind::Tldr &&
+                       bundle.examples[0].verified &&
+                       bundle.examples[0].source_reference.find("tool.md") != std::string::npos,
+                   "TLDR example records exact local-page provenance");
+        }
+        if (!bundle.learning_resources.empty()) {
+            expect(bundle.learning_resources[0].target == "tldr tool",
+                   "installed TLDR client is exposed only as a learning target, not executed");
+            expect(bundle.learning_resources[0].source_kind == acclorite::GuidanceSourceKind::Tldr,
+                   "TLDR learning resource preserves community-source type");
+        }
+        expect(!std::filesystem::exists(marker),
+               "TLDR guidance never executes the client while reading the local cache");
+
+        candidate.examples.push_back(acclorite::UsageExample{
+            .text = "tool --from-man",
+            .source_kind = acclorite::GuidanceSourceKind::Man,
+            .source_reference = "man:tool",
+            .verified = true,
+        });
+        const auto lower_priority = provider.guide(candidate);
+        expect(lower_priority.learning_resources.size() == 1,
+               "TLDR remains a learning resource after a higher-priority example exists");
+        expect(lower_priority.examples.empty(),
+               "TLDR does not duplicate examples after man or Info guidance already succeeded");
+
+        candidate.examples.clear();
+        candidate.command = "missing-tool";
+        const auto missing = provider.guide(candidate);
+        expect(missing.examples.empty() && missing.learning_resources.empty(),
+               "TLDR missing-page path is exact local filesystem lookup only");
+        expect(!std::filesystem::exists(marker),
+               "TLDR cache miss does not spawn the client or trigger network-capable behavior");
+
+        {
+            std::ofstream wrong(pages / "wrong.md");
+            wrong << "# different-command\n\n`wrong --unsafe`\n";
+        }
+        candidate.command = "wrong";
+        const auto wrong_heading = provider.guide(candidate);
+        expect(wrong_heading.examples.empty() && wrong_heading.learning_resources.empty(),
+               "TLDR filename alone is insufficient; page heading must prove exact command identity");
+
+        {
+            std::ofstream empty_examples(pages / "noexample.md");
+            empty_examples << "# noexample\n\n> Fixture.\n\n`printf nope`\n";
+        }
+        candidate.command = "noexample";
+        const auto no_examples = provider.guide(candidate);
+        expect(no_examples.learning_resources.size() == 1 && no_examples.examples.empty(),
+               "TLDR may verify a local page while conservatively finding no usable example");
+        acclorite::SearchResult tldr_only_result;
+        candidate.learning_resources = no_examples.learning_resources;
+        tldr_only_result.candidates.push_back(candidate);
+        std::ostringstream tldr_only_terminal;
+        acclorite::TerminalRenderer{}.render(tldr_only_result, tldr_only_terminal);
+        expect(tldr_only_terminal.str().find("None found in current local documentation.") != std::string::npos,
+               "terminal no-example message also covers verified local TLDR pages");
+    }
+
+    std::filesystem::remove_all(temp);
+}
+
+void test_tldr_guidance_honors_tealdeer_configured_cache() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-tldr-config-test";
+    std::filesystem::remove_all(temp);
+    const auto config_dir = temp / "config";
+    const auto cache_dir = temp / "custom-cache";
+    const auto pages = cache_dir / "tldr-pages/pages.en/linux";
+    const auto empty_bin = temp / "empty-bin";
+    std::filesystem::create_directories(config_dir);
+    std::filesystem::create_directories(pages);
+    std::filesystem::create_directories(empty_bin);
+
+    {
+        std::ofstream config(config_dir / "config.toml");
+        config << "[directories]\n"
+                  "cache_dir = \"../custom-cache\" # relative to this config file\n";
+    }
+    {
+        std::ofstream page(pages / "configtool.md");
+        page << "# configtool\n\n> Fixture.\n\n`configtool --local-cache`\n";
+    }
+
+    {
+        ScopedPath scoped_path(empty_bin);
+        ScopedEnv home("HOME", (temp / "home").string());
+        ScopedEnv xdg_cache("XDG_CACHE_HOME", (temp / "empty-cache").string());
+        ScopedEnv xdg_data("XDG_DATA_DIRS", (temp / "empty-data").string());
+        ScopedEnv language("LANGUAGE", "");
+        ScopedEnv lang("LANG", "en_US.UTF-8");
+        ScopedEnv tealdeer_cache("TEALDEER_CACHE_DIR", "");
+        ScopedEnv tealdeer_config("TEALDEER_CONFIG_DIR", config_dir.string());
+
+        acclorite::TldrGuidanceProvider provider;
+        expect(provider.available(), "TLDR guidance honors tealdeer directories.cache_dir without subprocess discovery");
+        const auto bundle = provider.guide(acclorite::Candidate{
+            .command = "configtool",
+            .summary = "fixture",
+            .source = "path",
+            .installed = true,
+            .cli_capable = true,
+        });
+        expect(bundle.examples.size() == 1 && bundle.examples[0].text == "configtool --local-cache",
+               "tealdeer configured cache is parsed and used for exact local guidance");
+        expect(!bundle.learning_resources.empty() &&
+                   bundle.learning_resources[0].target.find("configtool.md") != std::string::npos,
+               "when no TLDR client is present the verified local page path remains the learning target");
+    }
+
+    std::filesystem::remove_all(temp);
+}
+
+void test_curated_guidance_is_exact_dated_and_lower_priority() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-curated-guidance-test.tsv";
+    {
+        std::ofstream metadata(temp);
+        metadata << "# schema: 1\n"
+                    "tool\texample\tstable-example\t\ttool --stable\thttps://example.invalid/tool-docs\t2026-09-06\n"
+                    "tool\tresource\tofficial-docs\tOfficial tool documentation\thttps://example.invalid/tool-docs\thttps://example.invalid/tool-docs\t2026-09-06\n"
+                    "toolbox\texample\tother-tool\t\ttoolbox --different\thttps://example.invalid/toolbox\t2026-09-06\n"
+                    "broken\texample\tmissing-date\t\tbroken --nope\thttps://example.invalid/broken\tnot-a-date\n";
+    }
+
+    acclorite::CuratedGuidanceProvider provider(temp, "fixture-curator");
+    expect(provider.available(), "curated guidance loads a bounded valid bundled-style metadata file");
+
+    acclorite::Candidate candidate{
+        .command = "tool",
+        .summary = "fixture",
+        .source = "path",
+        .installed = true,
+        .cli_capable = true,
+    };
+    const auto bundle = provider.guide(candidate);
+    expect(bundle.examples.size() == 1 && bundle.examples[0].text == "tool --stable",
+           "curated guidance matches exact command identity and emits verified fallback syntax");
+    expect(bundle.learning_resources.size() == 1 &&
+               bundle.learning_resources[0].target == "https://example.invalid/tool-docs",
+           "curated guidance exposes the verified upstream learning target");
+    if (!bundle.examples.empty()) {
+        expect(bundle.examples[0].source_kind == acclorite::GuidanceSourceKind::Curated &&
+                   bundle.examples[0].verified &&
+                   bundle.examples[0].verified_by == "fixture-curator" &&
+                   bundle.examples[0].verified_on == "2026-09-06",
+               "curated example carries explicit curator and verification date provenance");
+    }
+
+    candidate.examples.push_back(acclorite::UsageExample{
+        .text = "tool --from-tldr",
+        .source_kind = acclorite::GuidanceSourceKind::Tldr,
+        .source_reference = "tldr:tool",
+        .verified = true,
+    });
+    const auto lower_priority = provider.guide(candidate);
+    expect(lower_priority.examples.empty(),
+           "curated examples remain below man, Info, and TLDR source priority");
+    expect(lower_priority.learning_resources.size() == 1,
+           "curated upstream learning resources remain useful even when a higher-priority example exists");
+
+    candidate.examples.clear();
+    candidate.command = "toolbox-extra";
+    const auto substring = provider.guide(candidate);
+    expect(substring.examples.empty() && substring.learning_resources.empty(),
+           "curated metadata never leaks through substring command matching");
+
+    candidate.command = "broken";
+    const auto malformed = provider.guide(candidate);
+    expect(malformed.examples.empty() && malformed.learning_resources.empty(),
+           "malformed undated curated rows are ignored instead of being treated as verified");
+
+    acclorite::SearchResult result;
+    candidate.command = "tool";
+    candidate.examples = bundle.examples;
+    candidate.learning_resources = bundle.learning_resources;
+    result.candidates.push_back(candidate);
+    std::ostringstream json;
+    acclorite::JsonRenderer{}.render(result, json);
+    expect(json.str().find("\"schema_version\": 15") != std::string::npos,
+           "curated verification metadata advances search JSON to schema 15");
+    expect(json.str().find("\"verified_by\": \"fixture-curator\"") != std::string::npos &&
+               json.str().find("\"verified_on\": \"2026-09-06\"") != std::string::npos,
+           "schema 15 exposes curator identity and verification date machine-readably");
+
+    {
+        ScopedEnv no_override("ACCLORITE_CURATED_GUIDANCE", "");
+        acclorite::CuratedGuidanceProvider bundled;
+        const auto bundled_rg = bundled.guide(acclorite::Candidate{
+            .command = "rg",
+            .summary = "fixture",
+            .source = "path",
+            .installed = true,
+            .cli_capable = true,
+        });
+        expect(!bundled_rg.learning_resources.empty() &&
+                   bundled_rg.learning_resources.front().verified_by == "acclorite-project",
+               "only the bundled Acclorite corpus claims acclorite-project curator provenance");
+    }
+
+    {
+        ScopedEnv override_path("ACCLORITE_CURATED_GUIDANCE", temp.string());
+        acclorite::CuratedGuidanceProvider overridden;
+        const auto overridden_tool = overridden.guide(candidate);
+        expect(!overridden_tool.learning_resources.empty() &&
+                   overridden_tool.learning_resources.front().verified_by == "local-override",
+               "environment-supplied curated corpora cannot impersonate Acclorite project provenance");
+    }
+
+    std::filesystem::remove(temp);
+}
+
 void test_guidance_is_post_ranking_bounded_and_machine_visible() {
     acclorite::SearchEngine baseline;
     baseline.add_source(std::make_unique<GuidanceIntegrationSource>());
@@ -3625,7 +4030,7 @@ void test_guidance_is_post_ranking_bounded_and_machine_visible() {
 
     std::ostringstream json;
     acclorite::JsonRenderer{}.render(with_guidance, json);
-    expect(json.str().find("\"schema_version\": 14") != std::string::npos,
+    expect(json.str().find("\"schema_version\": 15") != std::string::npos,
            "guidance fields advance search JSON schema to 14");
     expect(json.str().find("\"examples\"") != std::string::npos &&
            json.str().find("\"learning_resources\"") != std::string::npos,
@@ -3694,7 +4099,7 @@ void test_json_renderer_escapes() {
 
     expect(json.find("find \\\"thing\\\"") != std::string::npos, "JSON escapes quotes");
     expect(json.find("line1\\nline2") != std::string::npos, "JSON escapes newlines");
-    expect(json.find("\"schema_version\": 14") != std::string::npos, "JSON schema advances for performance profiling output");
+    expect(json.find("\"schema_version\": 15") != std::string::npos, "JSON schema advances for performance profiling output");
     expect(json.find("\"ranking\": null") != std::string::npos, "normal JSON emits null ranking diagnostics when not requested");
     expect(json.find("\"query_frame\"") != std::string::npos, "JSON includes query frame object");
     expect(json.find("\"confidence\"") != std::string::npos, "JSON includes confidence object");
@@ -3740,6 +4145,10 @@ int main() {
     test_confidence_marks_weak_best_match_low();
     test_search_engine_attaches_confidence_without_changing_ranking();
     test_man_guidance_extracts_only_source_backed_examples();
+    test_info_guidance_is_verified_and_falls_back_after_man();
+    test_tldr_guidance_reads_exact_local_cache_without_spawning_client();
+    test_tldr_guidance_honors_tealdeer_configured_cache();
+    test_curated_guidance_is_exact_dated_and_lower_priority();
     test_guidance_is_post_ranking_bounded_and_machine_visible();
     test_process_plural_is_canonical_not_broken_s_stem();
     test_ranking_breakdown_tracks_actual_preference_steps();

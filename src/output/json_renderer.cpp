@@ -35,7 +35,7 @@ std::string JsonRenderer::escape(const std::string_view input) {
 
 void JsonRenderer::render(const SearchResult& result, std::ostream& out) const {
     out << "{\n";
-    out << "  \"schema_version\": 14,\n";
+    out << "  \"schema_version\": 15,\n";
     out << "  \"query\": \"" << escape(result.raw_query) << "\",\n";
     out << "  \"normalized_query\": \"" << escape(result.normalized_query) << "\",\n";
     out << "  \"timing\": ";
@@ -189,7 +189,9 @@ void JsonRenderer::render(const SearchResult& result, std::ostream& out) const {
                 << guidance_source_kind_name(example.source_kind) << "\",\n";
             out << "          \"source_reference\": \""
                 << escape(example.source_reference) << "\",\n";
-            out << "          \"verified\": " << (example.verified ? "true" : "false") << '\n';
+            out << "          \"verified\": " << (example.verified ? "true" : "false") << ",\n";
+            out << "          \"verified_by\": \"" << escape(example.verified_by) << "\",\n";
+            out << "          \"verified_on\": \"" << escape(example.verified_on) << "\"\n";
             out << "        }";
             if (example_index + 1 < candidate.examples.size()) {
                 out << ',';
@@ -210,7 +212,9 @@ void JsonRenderer::render(const SearchResult& result, std::ostream& out) const {
                 << guidance_source_kind_name(resource.source_kind) << "\",\n";
             out << "          \"source_reference\": \""
                 << escape(resource.source_reference) << "\",\n";
-            out << "          \"verified\": " << (resource.verified ? "true" : "false") << '\n';
+            out << "          \"verified\": " << (resource.verified ? "true" : "false") << ",\n";
+            out << "          \"verified_by\": \"" << escape(resource.verified_by) << "\",\n";
+            out << "          \"verified_on\": \"" << escape(resource.verified_on) << "\"\n";
             out << "        }";
             if (resource_index + 1 < candidate.learning_resources.size()) {
                 out << ',';

@@ -171,6 +171,8 @@ std::vector<UsageExample> extract_examples(
             .source_kind = GuidanceSourceKind::Man,
             .source_reference = "man:" + std::string(command),
             .verified = true,
+            .verified_by = {},
+            .verified_on = {},
         });
         if (examples.size() >= 2) {
             break;
@@ -201,6 +203,8 @@ GuidanceBundle ManGuidanceProvider::guide(const Candidate& candidate) const {
         .source_kind = GuidanceSourceKind::Man,
         .source_reference = "man:" + candidate.command,
         .verified = true,
+        .verified_by = {},
+        .verified_on = {},
     });
 
     const auto result = system::run_capture_stdout({"man", "--", candidate.command}, 512 * 1024);

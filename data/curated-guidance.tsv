@@ -1,0 +1,19 @@
+# Acclorite curated guidance metadata
+# schema: 1
+# curator: acclorite-project
+#
+# Columns (tab-separated):
+# command  kind  id  label  value  source_reference  verified_on
+#
+# `verified_on` records the date an Acclorite maintainer checked the exact
+# value against the upstream source. Entries are deliberately tiny and must be
+# syntax-stable enough to ship without a version gate; version-scoped curated
+# syntax is intentionally deferred rather than guessed.
+rg	example	official-files		rg --files	https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md	2026-09-06
+rg	resource	official-guide	Official ripgrep guide	https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md	https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md	2026-09-06
+fzf	example	official-height		fzf --height 40%	https://github.com/junegunn/fzf/blob/master/README.md	2026-09-06
+fzf	resource	official-readme	Official fzf documentation	https://github.com/junegunn/fzf/blob/master/README.md	https://github.com/junegunn/fzf/blob/master/README.md	2026-09-06
+bat	example	official-display		bat README.md	https://github.com/sharkdp/bat/blob/master/README.md	2026-09-06
+bat	resource	official-readme	Official bat documentation	https://github.com/sharkdp/bat/blob/master/README.md	https://github.com/sharkdp/bat/blob/master/README.md	2026-09-06
+btop	resource	official-readme	Official btop documentation	https://github.com/aristocratos/btop/blob/main/README.md	https://github.com/aristocratos/btop/blob/main/README.md	2026-09-06
+fd	resource	official-readme	Official fd documentation	https://github.com/sharkdp/fd/blob/master/README.md	https://github.com/sharkdp/fd/blob/master/README.md	2026-09-06

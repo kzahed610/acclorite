@@ -78,10 +78,13 @@ void render_candidate_details(const Candidate& candidate, std::ostream& out, con
 
 
 void render_guidance(const Candidate& candidate, std::ostream& out) {
-    const bool has_man_resource = std::ranges::any_of(
+    const bool has_verified_documentation = std::ranges::any_of(
         candidate.learning_resources,
         [](const LearningResource& resource) {
-            return resource.source_kind == GuidanceSourceKind::Man;
+            return resource.verified &&
+                   (resource.source_kind == GuidanceSourceKind::Man ||
+                    resource.source_kind == GuidanceSourceKind::Info ||
+                    resource.source_kind == GuidanceSourceKind::Tldr);
         }
     );
 
@@ -89,7 +92,7 @@ void render_guidance(const Candidate& candidate, std::ostream& out) {
         const auto& example = candidate.examples.front();
         out << "\nVerified example\n" << example.text << '\n';
         out << "Source: " << example.source_reference << '\n';
-    } else if (has_man_resource) {
+    } else if (has_verified_documentation) {
         out << "\nVerified example\n";
         out << "None found in current local documentation.\n";
     }
