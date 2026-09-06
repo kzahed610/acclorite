@@ -1,44 +1,71 @@
+#include <exception>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include "acclorite/core/capabilities.hpp"
+#include "acclorite/core/machine_interface.hpp"
 #include "acclorite/core/query.hpp"
 #include "acclorite/core/search_engine.hpp"
 #include "acclorite/diagnostics/doctor.hpp"
-#include "acclorite/output/json_renderer.hpp"
+#include "acclorite/guidance/curated_provider.hpp"
+#include "acclorite/guidance/info_provider.hpp"
+#include "acclorite/guidance/man_provider.hpp"
+#include "acclorite/guidance/tldr_provider.hpp"
+#include "acclorite/output/capabilities_json_renderer.hpp"
 #include "acclorite/output/doctor_json_renderer.hpp"
 #include "acclorite/output/doctor_terminal_renderer.hpp"
+#include "acclorite/output/json_renderer.hpp"
 #include "acclorite/output/terminal_renderer.hpp"
 #include "acclorite/sources/desktop_source.hpp"
-#include "acclorite/sources/index_source.hpp"
 #include "acclorite/sources/filesystem_location_source.hpp"
+#include "acclorite/sources/index_source.hpp"
 #include "acclorite/sources/man_source.hpp"
 #include "acclorite/sources/pacman_source.hpp"
 #include "acclorite/sources/path_source.hpp"
 #include "acclorite/sources/pkgfile_enricher.hpp"
-#include "acclorite/guidance/man_provider.hpp"
-#include "acclorite/guidance/info_provider.hpp"
-#include "acclorite/guidance/tldr_provider.hpp"
-#include "acclorite/guidance/curated_provider.hpp"
 
 #ifndef ACCLORITE_VERSION
-#define ACCLORITE_VERSION "0.2.4"
+#define ACCLORITE_VERSION "0.2.6"
 #endif
 
 namespace {
 
 constexpr std::string_view kVersion = ACCLORITE_VERSION;
+using acclorite::machine::ExitCode;
+using acclorite::machine::exit_code;
+
+struct CliOptions {
+    bool help{false};
+    bool version{false};
+    bool json{false};
+    bool reindex{false};
+    bool explain_ranking{false};
+    bool profile{false};
+    bool capabilities{false};
+    std::vector<std::string> query_parts;
+};
 
 void print_usage(std::ostream& out) {
     out << "Acclorite — Linux tool discovery assistant\n\n";
     out << "Usage:\n";
     out << "  acclorite [--json] [--explain-ranking] [--profile] <query...>\n";
-    out << "  acclorite --reindex\n";
     out << "  acclorite [--json] doctor\n";
+    out << "  acclorite --reindex\n";
+    out << "  acclorite [--json] --capabilities\n";
     out << "  acclorite --version\n";
     out << "  acclorite --help\n";
+}
+
+int usage_error(const std::string_view message, const bool show_usage = false) {
+    std::cerr << "error: " << message << '\n';
+    if (show_usage) {
+        std::cerr << '\n';
+        print_usage(std::cerr);
+    }
+    return exit_code(ExitCode::UsageError);
 }
 
 std::string join_query(const std::vector<std::string>& parts) {
@@ -52,99 +79,130 @@ std::string join_query(const std::vector<std::string>& parts) {
     return query;
 }
 
-} // namespace
-
-int main(int argc, char** argv) {
+int run_cli(const int argc, char** argv) {
     if (argc < 2) {
         print_usage(std::cerr);
-        return 2;
+        return exit_code(ExitCode::UsageError);
     }
 
-    bool json = false;
-    bool reindex = false;
-    bool explain_ranking = false;
-    bool profile = false;
-    std::vector<std::string> query_parts;
+    CliOptions options;
+    bool end_of_options = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string_view arg(argv[i]);
 
+        if (end_of_options) {
+            options.query_parts.emplace_back(arg);
+            continue;
+        }
+
+        if (arg == "--") {
+            end_of_options = true;
+            continue;
+        }
         if (arg == "--help" || arg == "-h") {
-            print_usage(std::cout);
-            return 0;
+            options.help = true;
+            continue;
         }
-
         if (arg == "--version" || arg == "-V") {
-            std::cout << "acclorite " << kVersion << '\n';
-            return 0;
+            options.version = true;
+            continue;
         }
-
         if (arg == "--json") {
-            json = true;
+            options.json = true;
             continue;
         }
-
         if (arg == "--reindex") {
-            reindex = true;
+            options.reindex = true;
             continue;
         }
-
         if (arg == "--explain-ranking") {
-            explain_ranking = true;
+            options.explain_ranking = true;
             continue;
         }
-
         if (arg == "--profile") {
-            profile = true;
+            options.profile = true;
             continue;
         }
+        if (arg == "--capabilities") {
+            options.capabilities = true;
+            continue;
+        }
+        if (!arg.empty() && arg.front() == '-') {
+            return usage_error("unknown option: " + std::string(arg));
+        }
 
-        query_parts.emplace_back(arg);
+        options.query_parts.emplace_back(arg);
     }
 
-    const bool doctor = query_parts.size() == 1 && query_parts.front() == "doctor";
+    if (options.help) {
+        if (options.version || options.capabilities || options.reindex || options.json ||
+            options.explain_ranking || options.profile || !options.query_parts.empty()) {
+            return usage_error("--help must be used by itself");
+        }
+        print_usage(std::cout);
+        return exit_code(ExitCode::Success);
+    }
+
+    if (options.version) {
+        if (options.capabilities || options.reindex || options.json || options.explain_ranking ||
+            options.profile || !options.query_parts.empty()) {
+            return usage_error("--version must be used by itself");
+        }
+        std::cout << "acclorite " << kVersion << '\n';
+        return exit_code(ExitCode::Success);
+    }
+
+    if (options.capabilities) {
+        if (options.reindex || options.explain_ranking || options.profile || !options.query_parts.empty()) {
+            return usage_error("--capabilities does not accept a query, --reindex, --explain-ranking, or --profile");
+        }
+        const auto report = acclorite::detect_capabilities();
+        acclorite::CapabilitiesJsonRenderer{}.render(report, kVersion, std::cout);
+        return exit_code(ExitCode::Success);
+    }
+
+    const bool doctor = options.query_parts.size() == 1 && options.query_parts.front() == "doctor";
     if (doctor) {
-        if (reindex) {
-            std::cerr << "error: doctor does not accept --reindex\n";
-            return 2;
+        if (options.reindex) {
+            return usage_error("doctor does not accept --reindex");
         }
-        if (explain_ranking) {
-            std::cerr << "error: doctor does not accept --explain-ranking\n";
-            return 2;
+        if (options.explain_ranking) {
+            return usage_error("doctor does not accept --explain-ranking");
         }
-        if (profile) {
-            std::cerr << "error: doctor does not accept --profile\n";
-            return 2;
+        if (options.profile) {
+            return usage_error("doctor does not accept --profile");
         }
 
         const auto report = acclorite::diagnostics::Doctor{}.run();
-        if (json) {
+        if (options.json) {
             acclorite::DoctorJsonRenderer{}.render(report, std::cout);
         } else {
             acclorite::DoctorTerminalRenderer{}.render(report, std::cout);
         }
-        return report.has_errors() ? 1 : 0;
+        return report.has_errors()
+            ? exit_code(ExitCode::DiagnosticError)
+            : exit_code(ExitCode::Success);
     }
 
-    if (reindex) {
+    if (options.reindex) {
+        if (options.json || options.explain_ranking || options.profile || !options.query_parts.empty()) {
+            return usage_error("--reindex is a standalone maintenance command");
+        }
         const acclorite::IndexSource index;
         if (!index.rebuild()) {
             std::cerr << "error: failed to rebuild Acclorite index\n";
-            return 1;
+            return exit_code(ExitCode::OperationalError);
         }
         std::cout << "Rebuilt Acclorite index: " << acclorite::IndexSource::database_path().string() << '\n';
-        if (query_parts.empty()) {
-            return 0;
-        }
+        return exit_code(ExitCode::Success);
     }
 
-    if (query_parts.empty()) {
-        std::cerr << "error: missing query\n\n";
-        print_usage(std::cerr);
-        return 2;
+    if (options.query_parts.empty()) {
+        return usage_error("missing query", true);
     }
 
-    const acclorite::Query query = acclorite::Query::parse(join_query(query_parts));
+    const acclorite::Query query = acclorite::Query::parse(join_query(options.query_parts));
 
     acclorite::SearchEngine engine;
     auto index = std::make_unique<acclorite::IndexSource>();
@@ -157,10 +215,6 @@ int main(int argc, char** argv) {
         engine.add_source(std::make_unique<acclorite::DesktopSource>());
     }
 
-    // Arch package discovery is deliberately live for now: pacman can search the
-    // synchronized repository metadata without requiring Acclorite to duplicate
-    // the entire package database in its cache. Other distro backends will use
-    // the same source boundary later.
     auto pacman = std::make_unique<acclorite::PacmanSource>();
     if (pacman->available()) {
         engine.add_source(std::move(pacman));
@@ -193,13 +247,34 @@ int main(int argc, char** argv) {
         engine.add_guidance_provider(std::move(curated_guidance));
     }
 
-    const acclorite::SearchResult result = engine.search(query, 10, explain_ranking, profile);
+    const acclorite::SearchResult result = engine.search(
+        query,
+        10,
+        options.explain_ranking,
+        options.profile
+    );
 
-    if (json) {
+    if (options.json) {
         acclorite::JsonRenderer{}.render(result, std::cout);
     } else {
         acclorite::TerminalRenderer{}.render(result, std::cout);
     }
 
-    return (result.candidates.empty() && result.locations.empty()) ? 1 : 0;
+    return (result.candidates.empty() && result.locations.empty())
+        ? exit_code(ExitCode::NoResult)
+        : exit_code(ExitCode::Success);
+}
+
+} // namespace
+
+int main(const int argc, char** argv) {
+    try {
+        return run_cli(argc, argv);
+    } catch (const std::exception& error) {
+        std::cerr << "error: Acclorite operational failure: " << error.what() << '\n';
+        return exit_code(ExitCode::OperationalError);
+    } catch (...) {
+        std::cerr << "error: Acclorite operational failure: unknown exception\n";
+        return exit_code(ExitCode::OperationalError);
+    }
 }

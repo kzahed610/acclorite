@@ -17,3 +17,87 @@ bat	example	official-display		bat README.md	https://github.com/sharkdp/bat/blob/
 bat	resource	official-readme	Official bat documentation	https://github.com/sharkdp/bat/blob/master/README.md	https://github.com/sharkdp/bat/blob/master/README.md	2026-09-06
 btop	resource	official-readme	Official btop documentation	https://github.com/aristocratos/btop/blob/main/README.md	https://github.com/aristocratos/btop/blob/main/README.md	2026-09-06
 fd	resource	official-readme	Official fd documentation	https://github.com/sharkdp/fd/blob/master/README.md	https://github.com/sharkdp/fd/blob/master/README.md	2026-09-06
+eza	example	official-tree		eza --tree	https://github.com/eza-community/eza	2026-09-06
+eza	resource	official-readme	Official eza documentation	https://github.com/eza-community/eza	https://github.com/eza-community/eza	2026-09-06
+zoxide	example	official-jump		z foo	https://github.com/ajeetdsouza/zoxide	2026-09-06
+zoxide	resource	official-readme	Official zoxide documentation	https://github.com/ajeetdsouza/zoxide	https://github.com/ajeetdsouza/zoxide	2026-09-06
+dust	example	official-depth		dust -d 2	https://github.com/bootandy/dust	2026-09-06
+dust	resource	official-readme	Official dust documentation	https://github.com/bootandy/dust	https://github.com/bootandy/dust	2026-09-06
+duf	example	official-basic		duf	https://github.com/muesli/duf	2026-09-06
+duf	resource	official-readme	Official duf documentation	https://github.com/muesli/duf	https://github.com/muesli/duf	2026-09-06
+procs	example	official-tree		procs --tree	https://github.com/dalance/procs	2026-09-06
+procs	resource	official-readme	Official procs documentation	https://github.com/dalance/procs	https://github.com/dalance/procs	2026-09-06
+hyperfine	example	official-basic		hyperfine 'sleep 0.3'	https://github.com/sharkdp/hyperfine/blob/master/README.md	2026-09-06
+hyperfine	resource	official-readme	Official hyperfine documentation	https://github.com/sharkdp/hyperfine/blob/master/README.md	https://github.com/sharkdp/hyperfine/blob/master/README.md	2026-09-06
+tokei	example	official-directory		tokei ./foo	https://github.com/XAMPPRocky/tokei/blob/master/README.md	2026-09-06
+tokei	resource	official-readme	Official tokei documentation	https://github.com/XAMPPRocky/tokei/blob/master/README.md	https://github.com/XAMPPRocky/tokei/blob/master/README.md	2026-09-06
+gh	example	official-repository		gh repo view owner/repo	https://cli.github.com/manual/gh_repo_view	2026-09-06
+gh	resource	official-manual	Official gh repo view manual	https://cli.github.com/manual/gh_repo_view	https://cli.github.com/manual/gh_repo_view	2026-09-06
+just	example	official-list		just --list	https://just.systems/man/en/listing-available-recipes.html	2026-09-06
+just	resource	official-manual	Official just recipe-listing manual	https://just.systems/man/en/listing-available-recipes.html	https://just.systems/man/en/listing-available-recipes.html	2026-09-06
+ninja	example	official-build		ninja	https://ninja-build.org/manual.html	2026-09-06
+ninja	resource	official-manual	Official Ninja documentation	https://ninja-build.org/manual.html	https://ninja-build.org/manual.html	2026-09-06
+fclones	example	official-group		fclones group .	https://github.com/pkolaczk/fclones/blob/main/README.md	2026-09-06
+fclones	resource	official-readme	Official fclones documentation	https://github.com/pkolaczk/fclones/blob/main/README.md	https://github.com/pkolaczk/fclones/blob/main/README.md	2026-09-06
+fdupes	example	official-recurse		fdupes a --recurse b	https://github.com/adrianlopezroche/fdupes/blob/master/fdupes.1	2026-09-06
+fdupes	resource	official-manual	Official fdupes manual	https://github.com/adrianlopezroche/fdupes/blob/master/fdupes.1	https://github.com/adrianlopezroche/fdupes/blob/master/fdupes.1	2026-09-06
+jdupes	example	official-recurse		jdupes a --recurse b	https://codeberg.org/jbruchon/jdupes/raw/branch/master/jdupes.1	2026-09-06
+jdupes	resource	official-manual	Official jdupes manual	https://codeberg.org/jbruchon/jdupes/raw/branch/master/jdupes.1	https://codeberg.org/jbruchon/jdupes/raw/branch/master/jdupes.1	2026-09-06
+rdfind	resource	official-readme	Official rdfind documentation	https://github.com/pauldreik/rdfind/blob/master/README.md	https://github.com/pauldreik/rdfind/blob/master/README.md	2026-09-06
+pdfgrep	example	official-search		pdfgrep --max-count 1 --context 1 --with-filename --page-number pattern rabin-karp.pdf	https://gitlab.com/pdfgrep/pdfgrep/-/blob/master/README.md	2026-09-06
+pdfgrep	resource	official-readme	Official pdfgrep documentation	https://gitlab.com/pdfgrep/pdfgrep/-/blob/master/README.md	https://gitlab.com/pdfgrep/pdfgrep/-/blob/master/README.md	2026-09-06
+ps	example	official-all		ps -ef	https://gitlab.com/procps-ng/procps/-/blob/master/man/ps.1	2026-09-06
+ps	resource	official-manual	Official ps manual	https://gitlab.com/procps-ng/procps/-/blob/master/man/ps.1	https://gitlab.com/procps-ng/procps/-/blob/master/man/ps.1	2026-09-06
+watch	example	official-directory		watch -d ls -l	https://gitlab.com/procps-ng/procps/-/blob/master/man/watch.1	2026-09-06
+watch	resource	official-manual	Official watch manual	https://gitlab.com/procps-ng/procps/-/blob/master/man/watch.1	https://gitlab.com/procps-ng/procps/-/blob/master/man/watch.1	2026-09-06
+free	example	official-basic		free	https://gitlab.com/procps-ng/procps/-/blob/master/man/free.1	2026-09-06
+free	resource	official-manual	Official free manual	https://gitlab.com/procps-ng/procps/-/blob/master/man/free.1	https://gitlab.com/procps-ng/procps/-/blob/master/man/free.1	2026-09-06
+ss	example	official-tcp		ss -t -a	https://github.com/iproute2/iproute2/blob/main/man/man8/ss.8	2026-09-06
+ss	resource	official-manual	Official ss manual	https://github.com/iproute2/iproute2/blob/main/man/man8/ss.8	https://github.com/iproute2/iproute2/blob/main/man/man8/ss.8	2026-09-06
+mpstat	example	official-interval		mpstat 2 5	https://github.com/sysstat/sysstat/blob/master/man/mpstat.1	2026-09-06
+mpstat	resource	official-manual	Official mpstat manual	https://github.com/sysstat/sysstat/blob/master/man/mpstat.1	https://github.com/sysstat/sysstat/blob/master/man/mpstat.1	2026-09-06
+jq	example	official-pretty		jq .	https://jqlang.org/manual/	2026-09-06
+jq	resource	official-manual	Official jq manual	https://jqlang.org/manual/	https://jqlang.org/manual/	2026-09-06
+yq	example	official-read		yq '.a.b[0].c' file.yaml	https://github.com/mikefarah/yq/blob/master/README.md	2026-09-06
+yq	resource	official-readme	Official yq documentation	https://github.com/mikefarah/yq/blob/master/README.md	https://github.com/mikefarah/yq/blob/master/README.md	2026-09-06
+shellcheck	example	official-basic		shellcheck yourscript	https://github.com/koalaman/shellcheck/blob/master/README.md	2026-09-06
+shellcheck	resource	official-readme	Official ShellCheck documentation	https://github.com/koalaman/shellcheck/blob/master/README.md	https://github.com/koalaman/shellcheck/blob/master/README.md	2026-09-06
+difft	example	official-files		difft foo1.c foo2.c	https://github.com/Wilfred/difftastic	2026-09-06
+difft	resource	official-readme	Official difftastic documentation	https://github.com/Wilfred/difftastic	https://github.com/Wilfred/difftastic	2026-09-06
+xh	example	official-get		xh httpbin.org/json	https://github.com/ducaale/xh	2026-09-06
+xh	resource	official-readme	Official xh documentation	https://github.com/ducaale/xh	https://github.com/ducaale/xh	2026-09-06
+tar	example	official-list		tar --list --file=practice.tar --wildcards '*/folk'	https://www.gnu.org/software/tar/manual/tar.html	2026-09-06
+tar	resource	official-manual	Official GNU tar manual	https://www.gnu.org/software/tar/manual/tar.html	https://www.gnu.org/software/tar/manual/tar.html	2026-09-06
+bsdtar	example	official-list		bsdtar -tvf file.tar.gz	https://github.com/libarchive/libarchive/blob/master/tar/bsdtar.1	2026-09-06
+bsdtar	resource	official-manual	Official bsdtar manual	https://github.com/libarchive/libarchive/blob/master/tar/bsdtar.1	https://github.com/libarchive/libarchive/blob/master/tar/bsdtar.1	2026-09-06
+unzip	example	official-test		unzip -t foo.zip	https://infozip.sourceforge.net/FAQ.html	2026-09-06
+unzip	resource	official-docs	Official Info-ZIP UnZip documentation	https://infozip.sourceforge.net/UnZip.html	https://infozip.sourceforge.net/UnZip.html	2026-09-06
+7z	resource	official-faq	Official 7-Zip documentation	https://www.7-zip.org/faq.html	https://www.7-zip.org/faq.html	2026-09-06
+ffmpeg	example	official-convert		ffmpeg -i input.avi output.mp4	https://ffmpeg.org/ffmpeg.html	2026-09-06
+ffmpeg	resource	official-manual	Official FFmpeg documentation	https://ffmpeg.org/ffmpeg.html	https://ffmpeg.org/ffmpeg.html	2026-09-06
+curl	example	official-head		curl -I https://example.com	https://curl.se/docs/manpage.html	2026-09-06
+curl	resource	official-manual	Official curl manual	https://curl.se/docs/manpage.html	https://curl.se/docs/manpage.html	2026-09-06
+lsof	example	official-sockets		lsof -i -U	https://github.com/lsof-org/lsof/blob/master/Lsof.8	2026-09-06
+lsof	resource	official-manual	Official lsof manual	https://github.com/lsof-org/lsof/blob/master/Lsof.8	https://github.com/lsof-org/lsof/blob/master/Lsof.8	2026-09-06
+fuser	example	official-tcp		fuser telnet/tcp	https://gitlab.com/psmisc/psmisc/-/blob/master/doc/fuser.1	2026-09-06
+fuser	resource	official-manual	Official fuser manual	https://gitlab.com/psmisc/psmisc/-/blob/master/doc/fuser.1	https://gitlab.com/psmisc/psmisc/-/blob/master/doc/fuser.1	2026-09-06
+strace	resource	official-manual	Official strace manual	https://github.com/strace/strace/blob/master/doc/strace.1.in	https://github.com/strace/strace/blob/master/doc/strace.1.in	2026-09-06
+gdb	resource	official-manual	Official GDB manual	https://sourceware.org/gdb/current/onlinedocs/gdb.html	https://sourceware.org/gdb/current/onlinedocs/gdb.html	2026-09-06
+cmake	example	official-out-of-source		cmake -S src -B build	https://cmake.org/cmake/help/latest/manual/cmake.1.html	2026-09-06
+cmake	resource	official-manual	Official CMake manual	https://cmake.org/cmake/help/latest/manual/cmake.1.html	https://cmake.org/cmake/help/latest/manual/cmake.1.html	2026-09-06
+cargo	example	official-check		cargo check	https://doc.rust-lang.org/cargo/commands/cargo-check.html	2026-09-06
+cargo	resource	official-manual	Official cargo check manual	https://doc.rust-lang.org/cargo/commands/cargo-check.html	https://doc.rust-lang.org/cargo/commands/cargo-check.html	2026-09-06
+make	example	official-dry-run		make -n	https://www.gnu.org/software/make/manual/make.html	2026-09-06
+make	resource	official-manual	Official GNU Make manual	https://www.gnu.org/software/make/manual/make.html	https://www.gnu.org/software/make/manual/make.html	2026-09-06
+ncdu	example	official-read-only		ncdu -r	https://dev.yorhel.nl/ncdu/man	2026-09-06
+ncdu	resource	official-manual	Official ncdu manual	https://dev.yorhel.nl/ncdu/man	https://dev.yorhel.nl/ncdu/man	2026-09-06
+atop	resource	official-docs	Official Atop documentation	https://www.atoptool.nl/	https://www.atoptool.nl/	2026-09-06
+magick	example	official-convert		magick image.jpg image.png	https://imagemagick.org/command-line-processing/	2026-09-06
+magick	resource	official-manual	Official ImageMagick command-line documentation	https://imagemagick.org/command-line-processing/	https://imagemagick.org/command-line-processing/	2026-09-06
+vips	example	official-rotate		vips rot k2.jpg x.jpg d90	https://www.libvips.org/API/current/using-the-cli.html	2026-09-06
+vips	resource	official-manual	Official libvips CLI documentation	https://www.libvips.org/API/current/using-the-cli.html	https://www.libvips.org/API/current/using-the-cli.html	2026-09-06
+meld	example	official-files		meld file1 file2	https://meldmerge.org/help/command-line.html	2026-09-06
+meld	resource	official-manual	Official Meld command-line documentation	https://meldmerge.org/help/command-line.html	https://meldmerge.org/help/command-line.html	2026-09-06
+delta	resource	official-readme	Official delta documentation	https://github.com/dandavison/delta	https://github.com/dandavison/delta	2026-09-06
+sd	example	official-stdin		sd before after	https://github.com/chmln/sd	2026-09-06
+sd	resource	official-readme	Official sd documentation	https://github.com/chmln/sd	https://github.com/chmln/sd	2026-09-06

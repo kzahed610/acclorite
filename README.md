@@ -4,7 +4,7 @@ Acclorite is a local-first Linux tool-discovery assistant.
 
 > I know what I want to do — just tell me what Linux tool I should be looking at.
 
-Acclorite **v0.2.4** is entirely deterministic: **no LLM is involved.**
+Acclorite **v0.2.6** is entirely deterministic: **no LLM is involved.**
 
 Acclorite now also recognizes broad query frames such as Discover, Explain, Locate, Inspect, Modify, Compare, and Diagnose. Frame recognition is weighted and whole-query-aware rather than being a brittle `what`/`where` prefix parser.
 
@@ -69,6 +69,14 @@ Machine-readable output:
 ./build/acclorite --json "archive files"
 ```
 
+Discover the stable machine-interface surface and locally detected integrations:
+
+```bash
+./build/acclorite --capabilities
+```
+
+The capability document also publishes the search/doctor schema versions and stable process exit-code mapping. See `docs/machine-interface.md` for the compatibility contract.
+
 Inspect Acclorite's local capabilities and optional integrations without changing anything:
 
 ```bash
@@ -96,11 +104,27 @@ or, when `XDG_CACHE_HOME` is unset:
 
 
 
+## v0.2.6
+
+`v0.2.6` completes Milestone 7 by freezing the machine-readable contract around the existing search schema 15, Doctor schema 1, and capability schema 1. The schemas do not advance because this slice does not change their payloads; it adds structural regression coverage for the contract already published by v0.2.5.
+
+A new end-to-end `acclorite_schema_contract_tests` target invokes the compiled binary in hermetic fixtures and validates required fields, JSON types, enum domains, nullability, and schema/exit-code pairing. It exercises ordinary and profiled search output, ranking explanations, guidance records, location records, all query-frame values including the `Unknown` fallback, no-result semantics, healthy/broken Doctor reports, and capability discovery. The tests intentionally do **not** snapshot scores, timings, temporary paths, ranking weights, or optional future fields.
+
+Schema 15 is now the frozen search baseline for external clients such as Realmheart. Clients must continue to ignore unknown object fields, but removing or renaming a documented field, changing its JSON type/nullability/enum meaning, or changing stable exit-code semantics requires an explicit compatibility break and the appropriate schema/version treatment documented in `docs/machine-interface.md`.
+
+## v0.2.5
+
+`v0.2.5` begins Milestone 7 by turning Acclorite's existing machine-readable output into an explicit compatibility contract. Search remains schema 15 and Doctor remains schema 1; their version constants now live with the machine-interface contract instead of being renderer-local magic numbers.
+
+A new `--capabilities` command emits capability schema 1 as JSON and reports the binary version, current search/Doctor schema versions, offline/non-interactive guarantees, supported command/output surfaces, SQLite build support, cheaply detected local integrations, and the stable process exit-code mapping. Capability detection is deliberately observational: it does not spawn subprocesses, rebuild caches, update metadata, or access the network. `doctor` remains the readiness/health interface.
+
+Exit codes are now explicit: `0` success, `1` valid search/no result, `2` invalid invocation, `3` operational failure, and `4` Doctor found a fundamental broken-state diagnostic. `--reindex` becomes a standalone maintenance command, unknown options are rejected, and `--` may be used to terminate option parsing for unusual query text. A new end-to-end CLI contract test spawns the real binary and locks these semantics down. Full compatibility rules live in `docs/machine-interface.md`.
+
 ## v0.2.4
 
 `v0.2.4` closes Milestone 6 with `CuratedGuidanceProvider`, a deliberately tiny bundled fallback for guidance that is useful but not naturally guaranteed to exist in local man, Info, or TLDR sources. The provider runs after all three higher-priority documentation providers and never participates in recall, ranking, score, confidence, package selection, or source provenance.
 
-Curated records live in `data/curated-guidance.tsv` rather than C++. Every accepted row names an exact command, has a stable record id, points at an upstream HTTP(S) source, and carries an ISO verification date. The starter corpus is intentionally small (`rg`, `fzf`, `bat`, `btop`, `fd`) and only includes syntax/resources that were manually checked against upstream project documentation. Malformed or undated rows are ignored. Exact command matching prevents one tool's metadata from leaking into similarly named binaries.
+Curated records live in `data/curated-guidance.tsv` rather than C++. Every accepted row names an exact command, has a stable record id, points at an upstream HTTP(S) source, and carries an ISO verification date. The corpus is intentionally bounded and expanded in reviewed batches; every shipped syntax/resource entry must be checked against upstream project documentation before it is accepted. Malformed or undated rows are ignored. Exact command matching prevents one tool's metadata from leaking into similarly named binaries.
 
 Source priority remains conservative: curated learning resources may be appended whenever an exact record exists, but curated examples are emitted only when man, Info, and local TLDR have all failed to produce an example. Search JSON advances to **schema 15** and adds `verified_by` plus `verified_on` to every example/resource record. Existing providers leave those fields empty; curated records set `verified_by` to `acclorite-project` and expose the review date. `verified` therefore continues to mean source-backed text, while schema 15 finally makes Acclorite-maintained assertions auditable for freshness. The provider profiles independently as `guidance:curated`.
 

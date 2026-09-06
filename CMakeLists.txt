@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(acclorite VERSION 0.2.4 LANGUAGES CXX)
+project(acclorite VERSION 0.2.6 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -23,9 +23,11 @@ configure_file(
 
 add_library(acclorite_core STATIC
     src/core/query.cpp
+    src/core/capabilities.cpp
     src/core/search_engine.cpp
     src/diagnostics/doctor.cpp
     src/output/terminal_renderer.cpp
+    src/output/capabilities_json_renderer.cpp
     src/output/doctor_terminal_renderer.cpp
     src/output/doctor_json_renderer.cpp
     src/output/json_renderer.cpp
@@ -110,6 +112,20 @@ if(ACCLORITE_BUILD_TESTS)
         add_test(
             NAME acclorite_benchmark_harness_tests
             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/test_harness.py
+        )
+
+        add_test(
+            NAME acclorite_cli_contract_tests
+            COMMAND ${Python3_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cli_contract.py
+                --binary $<TARGET_FILE:acclorite>
+        )
+
+        add_test(
+            NAME acclorite_schema_contract_tests
+            COMMAND ${Python3_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_schema_contract.py
+                --binary $<TARGET_FILE:acclorite>
         )
     endif()
 endif()

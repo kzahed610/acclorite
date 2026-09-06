@@ -1,5 +1,7 @@
 #include "acclorite/output/doctor_json_renderer.hpp"
 
+#include "acclorite/core/machine_interface.hpp"
+
 #include <iomanip>
 #include <ostream>
 #include <string_view>
@@ -38,7 +40,7 @@ void DoctorJsonRenderer::render(
     std::ostream& out
 ) const {
     out << "{\n";
-    out << "  \"doctor_schema_version\": 1,\n";
+    out << "  \"doctor_schema_version\": " << machine::kDoctorSchemaVersion << ",\n";
     out << "  \"status\": ";
     json_string(out, report.status());
     out << ",\n";

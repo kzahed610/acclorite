@@ -1,5 +1,7 @@
 #include "acclorite/output/json_renderer.hpp"
 
+#include "acclorite/core/machine_interface.hpp"
+
 #include <iomanip>
 #include <ostream>
 #include <sstream>
@@ -35,7 +37,7 @@ std::string JsonRenderer::escape(const std::string_view input) {
 
 void JsonRenderer::render(const SearchResult& result, std::ostream& out) const {
     out << "{\n";
-    out << "  \"schema_version\": 15,\n";
+    out << "  \"schema_version\": " << machine::kSearchSchemaVersion << ",\n";
     out << "  \"query\": \"" << escape(result.raw_query) << "\",\n";
     out << "  \"normalized_query\": \"" << escape(result.normalized_query) << "\",\n";
     out << "  \"timing\": ";
