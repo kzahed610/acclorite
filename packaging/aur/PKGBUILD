@@ -1,0 +1,35 @@
+# Maintainer: Acclorite project
+pkgname=acclorite
+pkgver=0.3.3
+pkgrel=1
+pkgdesc='Local-first deterministic Linux tool-discovery assistant'
+arch=('x86_64')
+url='https://github.com/kzahed610/Acclorite'
+license=('GPL-3.0-or-later')
+depends=('gcc-libs' 'glibc' 'sqlite')
+makedepends=('cmake' 'git')
+checkdepends=('python')
+optdepends=(
+  'man-db: local manual-page discovery and verified man guidance'
+  'expac: fast structured Arch repository metadata'
+  'pkgfile: map repository packages to provided commands'
+  'tealdeer: local TLDR guidance cache and convenient tldr learning targets'
+)
+source=("${pkgname}::git+${url}.git#tag=v${pkgver}")
+b2sums=('SKIP')
+
+build() {
+  cmake -S "$pkgname" -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DACCLORITE_BUILD_TESTS=ON
+  cmake --build build -j"$(nproc)"
+}
+
+check() {
+  ctest --test-dir build --output-on-failure
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}

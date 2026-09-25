@@ -184,7 +184,12 @@ def _error_assertions(case: dict[str, Any], error: str) -> list[AssertionResult]
         return []
     known = (
         "top1_any", "top3_any", "top10_all", "forbid_top1", "ambiguity", "frame",
-        "min_confidence", "targets_all", "clarification_ids", "locations_nonempty", "min_results",
+        "min_confidence", "targets_all", "targets_none", "clarification_ids",
+        "locations_nonempty", "min_results", "action_target_kind",
+        "action_target_command", "action_target_terms_all", "actionable_present",
+        "actionable_command", "actionable_option_any", "actionable_subcommand_any",
+        "actionable_safety", "invocation_present", "invocation_complete", "invocation_command",
+        "invocation_arguments", "invocation_arguments_all", "invocation_placeholder_count",
     )
     actual = f"<query error: {error}>"
     return [
@@ -251,6 +256,128 @@ def evaluate(case: dict[str, Any], payload: dict[str, Any], return_code: int, la
         if not isinstance(actual_targets, list):
             actual_targets = []
         assertions.append(_assert("targets_all", _contains_all(actual_targets, required), required, actual_targets))
+
+    if "targets_none" in expected:
+        want = bool(expected["targets_none"])
+        actual_targets = payload.get("targets", [])
+        actual = not isinstance(actual_targets, list) or not actual_targets
+        assertions.append(_assert("targets_none", actual == want, want, actual))
+
+    raw_action_target = payload.get("action_target")
+    action_target = raw_action_target if isinstance(raw_action_target, dict) else {}
+
+    if "action_target_kind" in expected:
+        target = str(expected["action_target_kind"])
+        actual = str(action_target.get("kind", ""))
+        assertions.append(_assert("action_target_kind", actual == target, target, actual))
+
+    if "action_target_command" in expected:
+        target = str(expected["action_target_command"])
+        actual = str(action_target.get("command", ""))
+        assertions.append(_assert("action_target_command", actual == target, target, actual))
+
+    if "action_target_terms_all" in expected:
+        required = list(expected["action_target_terms_all"])
+        actual_terms = action_target.get("terms", [])
+        if not isinstance(actual_terms, list):
+            actual_terms = []
+        assertions.append(_assert(
+            "action_target_terms_all",
+            _contains_all(actual_terms, required),
+            required,
+            actual_terms,
+        ))
+
+    raw_actionable = payload.get("actionable_answer")
+    actionable = raw_actionable if isinstance(raw_actionable, dict) else {}
+
+    if "actionable_present" in expected:
+        want = bool(expected["actionable_present"])
+        actual = bool(actionable)
+        assertions.append(_assert("actionable_present", actual == want, want, actual))
+
+    if "actionable_command" in expected:
+        target = str(expected["actionable_command"])
+        actual = str(actionable.get("command", ""))
+        assertions.append(_assert("actionable_command", actual == target, target, actual))
+
+    if "actionable_option_any" in expected:
+        accepted = list(expected["actionable_option_any"])
+        actual_names: list[str] = []
+        raw_options = actionable.get("relevant_options", [])
+        if isinstance(raw_options, list):
+            for item in raw_options:
+                if not isinstance(item, dict):
+                    continue
+                names = item.get("names", [])
+                if isinstance(names, list):
+                    actual_names.extend(str(name) for name in names if isinstance(name, str))
+        hit = any(name in accepted for name in actual_names)
+        assertions.append(_assert("actionable_option_any", hit, accepted, actual_names))
+
+    if "actionable_subcommand_any" in expected:
+        accepted = list(expected["actionable_subcommand_any"])
+        actual_names: list[str] = []
+        raw_subcommands = actionable.get("relevant_subcommands", [])
+        if isinstance(raw_subcommands, list):
+            actual_names = [
+                str(item.get("name", ""))
+                for item in raw_subcommands
+                if isinstance(item, dict) and isinstance(item.get("name", ""), str)
+            ]
+        hit = any(name in accepted for name in actual_names)
+        assertions.append(_assert("actionable_subcommand_any", hit, accepted, actual_names))
+
+    if "actionable_safety" in expected:
+        want = str(expected["actionable_safety"])
+        actual = str(actionable.get("safety", ""))
+        assertions.append(_assert("actionable_safety", actual == want, want, actual))
+
+    invocation = actionable.get("invocation")
+    invocation = invocation if isinstance(invocation, dict) else {}
+
+    if "invocation_present" in expected:
+        want = bool(expected["invocation_present"])
+        actual = bool(invocation)
+        assertions.append(_assert("invocation_present", actual == want, want, actual))
+
+    if "invocation_complete" in expected:
+        want = bool(expected["invocation_complete"])
+        actual = bool(invocation.get("complete", False)) if invocation else False
+        assertions.append(_assert("invocation_complete", actual == want, want, actual))
+
+    if "invocation_command" in expected:
+        want = str(expected["invocation_command"])
+        actual = str(invocation.get("command", "")) if invocation else ""
+        assertions.append(_assert("invocation_command", actual == want, want, actual))
+
+    if "invocation_arguments" in expected:
+        want = [str(value) for value in expected["invocation_arguments"]]
+        raw_arguments = invocation.get("arguments", []) if invocation else []
+        actual = [str(value) for value in raw_arguments] if isinstance(raw_arguments, list) else []
+        assertions.append(_assert("invocation_arguments", actual == want, want, actual))
+
+    if "invocation_arguments_all" in expected:
+        required = [str(value) for value in expected["invocation_arguments_all"]]
+        raw_arguments = invocation.get("arguments", []) if invocation else []
+        actual = [str(value) for value in raw_arguments] if isinstance(raw_arguments, list) else []
+        assertions.append(_assert(
+            "invocation_arguments_all",
+            _contains_all(actual, required),
+            required,
+            actual,
+        ))
+
+    if "invocation_placeholder_count" in expected:
+        want = int(expected["invocation_placeholder_count"])
+        raw_segments = invocation.get("segments", []) if invocation else []
+        actual = 0
+        if isinstance(raw_segments, list):
+            actual = sum(
+                1 for segment in raw_segments
+                if isinstance(segment, dict) and bool(segment.get("placeholder", False))
+            )
+        assertions.append(_assert("invocation_placeholder_count", actual == want, want, actual))
 
     if "clarification_ids" in expected:
         required = list(expected["clarification_ids"])
@@ -363,6 +490,8 @@ def build_report(binary: Path, corpus_path: Path, corpus: dict[str, Any], cases:
             "top3": metric_for_assertion(cases, "top3_any"),
             "frame": metric_for_assertion(cases, "frame"),
             "ambiguity": metric_for_assertion(cases, "ambiguity"),
+            "action_target": metric_for_assertion(cases, "action_target_kind"),
+            "actionable": metric_for_assertion(cases, "actionable_present"),
             "latency_ms": {
                 "median": statistics.median(latencies) if latencies else 0.0,
                 "p95": _percentile(latencies, 0.95),
@@ -392,6 +521,8 @@ def render_terminal(report: dict[str, Any]) -> str:
     top3 = summary["top3"]
     frame = summary["frame"]
     ambiguity = summary["ambiguity"]
+    action_target = summary.get("action_target", {"passed": 0, "total": 0, "rate": 0.0})
+    actionable = summary.get("actionable", {"passed": 0, "total": 0, "rate": 0.0})
     latency = summary["latency_ms"]
 
     def pct(value: float) -> str:
@@ -409,6 +540,8 @@ def render_terminal(report: dict[str, Any]) -> str:
         f"Top-3 hit rate      {top3['passed']:>3}/{top3['total']:<3}  {pct(top3['rate']) if top3['total'] else '  n/a'}",
         f"Frame accuracy      {frame['passed']:>3}/{frame['total']:<3}  {pct(frame['rate']) if frame['total'] else '  n/a'}",
         f"Ambiguity accuracy  {ambiguity['passed']:>3}/{ambiguity['total']:<3}  {pct(ambiguity['rate']) if ambiguity['total'] else '  n/a'}",
+        f"Action-target acc.  {action_target['passed']:>3}/{action_target['total']:<3}  {pct(action_target['rate']) if action_target['total'] else '  n/a'}",
+        f"Actionable presence {actionable['passed']:>3}/{actionable['total']:<3}  {pct(actionable['rate']) if actionable['total'] else '  n/a'}",
         f"Latency             p50 {latency['median']:.1f} ms · p95 {latency['p95']:.1f} ms · max {latency['max']:.1f} ms",
     ]
     profiled = summary.get("profiled_search_ms", {})

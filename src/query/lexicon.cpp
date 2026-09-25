@@ -20,8 +20,8 @@ struct VocabularyEntry {
 
 const std::unordered_map<std::string, VocabularyEntry>& vocabulary() {
     static const std::unordered_map<std::string, VocabularyEntry> groups{
-        {"search", {{"search", "find", "locate", "match", "lookup", "matching"}, ConceptRole::Action, 1.60}},
-        {"find", {{"find", "search", "locate", "lookup", "match"}, ConceptRole::Action, 1.60}},
+        {"search", {{"search", "find", "locate", "match", "lookup", "matching", "hunt", "hunting"}, ConceptRole::Action, 1.60}},
+        {"find", {{"find", "finding", "search", "locate", "lookup", "match", "hunt", "hunting"}, ConceptRole::Action, 1.60}},
         {"inspect", {{"inspect", "investigate", "show", "list", "view", "display", "status", "check", "examine", "see"}, ConceptRole::Action, 1.35}},
         {"show", {{"show", "inspect", "investigate", "list", "view", "display", "status", "check"}, ConceptRole::Action, 1.35}},
         {"list", {{"list", "show", "inspect", "view", "display", "enumerate"}, ConceptRole::Action, 1.30}},
@@ -33,7 +33,7 @@ const std::unordered_map<std::string, VocabularyEntry>& vocabulary() {
         {"text", {{"text", "line", "lines", "pattern", "patterns", "content", "regex", "txt"}, ConceptRole::Subject, 1.10}},
         {"disk", {{"disk", "storage", "drive", "filesystem", "space", "ssd", "hdd"}, ConceptRole::Subject, 1.20}},
         {"storage", {{"storage", "disk", "drive", "filesystem", "space", "ssd", "hdd"}, ConceptRole::Subject, 1.20}},
-        {"usage", {{"usage", "utilization", "space", "size", "consumption", "consuming", "eating", "hogging", "using", "uses", "used"}, ConceptRole::Action, 1.00}},
+        {"usage", {{"usage", "utilization", "space", "size", "consumption", "consuming", "eating", "ate", "hog", "hogs", "hogging", "using", "uses", "used", "full"}, ConceptRole::Action, 1.00}},
         {"network", {{"network", "networking", "socket", "sockets", "tcp", "udp", "interface"}, ConceptRole::Subject, 1.20}},
         {"connections", {{"connections", "connection", "socket", "sockets", "session", "listen", "listening"}, ConceptRole::Subject, 1.10}},
         {"connection", {{"connection", "connections", "socket", "sockets", "session", "listen", "listening"}, ConceptRole::Subject, 1.10}},
@@ -47,18 +47,21 @@ const std::unordered_map<std::string, VocabularyEntry>& vocabulary() {
         {"duplicate", {{"duplicate", "duplicates", "identical", "copies", "deduplicate"}, ConceptRole::Action, 1.45}},
         {"duplicates", {{"duplicates", "duplicate", "identical", "copies", "deduplicate"}, ConceptRole::Action, 1.45}},
         {"compress", {{"compress", "compression", "compressed", "archive", "packing"}, ConceptRole::Action, 1.55}},
-        {"extract", {{"extract", "extraction", "unpack", "decompress", "unarchive", "archive", "archiving"}, ConceptRole::Action, 1.55}},
-        {"tar", {{"tar", "tar.gz", "tgz", "tarball"}, ConceptRole::Subject, 1.30}},
+        {"extract", {{"extract", "extraction", "unpack", "unpacking", "decompress", "unarchive", "untar", "unzip", "unzipz", "archive", "archiving"}, ConceptRole::Action, 1.55}},
+        {"tar", {{"tar", "tar.gz", "targz", "tgz", "tarball"}, ConceptRole::Subject, 1.30}},
         {"memory", {{"memory", "ram", "rss", "swap"}, ConceptRole::Subject, 1.20}},
         {"ram", {{"ram", "memory", "rss", "swap"}, ConceptRole::Subject, 1.20}},
         {"cpu", {{"cpu", "processor", "processors", "processing"}, ConceptRole::Subject, 1.20}},
         {"port", {{"port", "ports", "socket", "sockets", "listen", "listening"}, ConceptRole::Subject, 1.20}},
-        {"identify", {{"identify", "owner", "owns", "owned", "responsible"}, ConceptRole::Action, 1.45}},
+        {"identify", {{"identify", "owner", "owns", "owned", "responsible", "stole", "stolen", "occupying", "occupies"}, ConceptRole::Action, 1.45}},
         {"config", {{"config", "configuration", "settings", "conf"}, ConceptRole::Context, 0.80}},
         {"key", {{"key", "keys", "identity", "credential", "authentication"}, ConceptRole::Subject, 1.00}},
-        {"compare", {{"compare", "comparison", "diff", "difference", "differences"}, ConceptRole::Action, 1.55}},
+        {"compare", {{"compare", "comparison", "diff", "different", "difference", "differences"}, ConceptRole::Action, 1.55}},
         {"folders", {{"folders", "folder", "directory", "directories", "filesystem"}, ConceptRole::Context, 0.70}},
         {"folder", {{"folder", "folders", "directory", "directories", "filesystem"}, ConceptRole::Context, 0.70}},
+        {"convert", {{"convert", "conversion", "transform", "transcode", "turn"}, ConceptRole::Action, 1.50}},
+        {"image", {{"image", "images", "png", "jpg", "jpeg", "webp", "bitmap", "picture", "pictures"}, ConceptRole::Subject, 1.15}},
+        {"large", {{"large", "big", "huge", "giant", "largest", "massive"}, ConceptRole::Subject, 1.15}},
     };
     return groups;
 }
@@ -101,19 +104,33 @@ std::string canonical_vocabulary_term(const std::string& input) {
 
 bool is_stopword(const std::string_view token) {
     static const std::unordered_set<std::string> stopwords{
-        "a", "all", "an", "and", "are", "bro", "can", "do", "does", "for", "how",
-        "has", "have", "having", "i", "in", "is", "it", "lots", "many", "me", "much",
-        "multiple", "my", "of", "on", "please", "that", "the", "thing", "this", "to",
-        "two", "use", "used", "uses", "using", "what", "where", "which", "why", "with", "between", "tf"
+        "a", "all", "an", "and", "are", "bro", "can", "cmd", "command", "do", "does", "for", "from", "got", "how",
+        "has", "have", "having", "hell", "i", "in", "into", "is", "it", "like", "lots", "many", "me", "much",
+        "multiple", "my", "need", "of", "on", "one", "please", "some", "something", "terminal", "that", "the", "thing", "this", "to",
+        "two", "use", "used", "uses", "using", "what", "where", "which", "why", "with", "between", "tf", "again", "wht",
+        "bunch", "but", "not", "these", "tell", "what's", "whats"
     };
     return stopwords.contains(std::string(token));
+}
+
+std::string normalized_human_token(std::string token) {
+    while (!token.empty() && !std::isalnum(static_cast<unsigned char>(token.front())) &&
+           token.front() != '-' && token.front() != '+') {
+        token.erase(token.begin());
+    }
+    while (!token.empty() && !std::isalnum(static_cast<unsigned char>(token.back())) &&
+           token.back() != '+' && token.back() != '#') {
+        token.pop_back();
+    }
+    return token;
 }
 
 std::vector<std::string> meaningful_terms(const Query& query) {
     std::vector<std::string> terms;
     std::unordered_set<std::string> seen;
 
-    for (const auto& token : query.tokens) {
+    for (const auto& raw_token : query.tokens) {
+        const std::string token = normalized_human_token(raw_token);
         const bool numeric = !token.empty() && std::ranges::all_of(token, [](const unsigned char ch) {
             return std::isdigit(ch);
         });
@@ -123,7 +140,24 @@ std::vector<std::string> meaningful_terms(const Query& query) {
         const bool relational_usage =
             query.frame.frame == QueryFrame::Inspect &&
             (token == "using" || token == "uses" || token == "used");
-        if (token.size() < 2 || token.starts_with('-') || numeric ||
+
+        // Output/display modifiers can be essential later when constructing an
+        // invocation, but they are poor evidence for discovering the parent tool.
+        // In a phrase such as "folder size but readable not raw bytes", letting
+        // readable/raw/bytes each become a full-weight unknown Subject dilutes the
+        // actual filesystem-usage intent. Preserve them in Query::raw/tokens for
+        // later binding while excluding this specific modifier family from tool
+        // discovery concepts.
+        const bool human_readable_modifier =
+            (token == "readable" || token == "raw" || token == "byte" || token == "bytes") &&
+            std::ranges::any_of(query.tokens, [](const std::string& item) {
+                return item == "readable" || item == "human-readable";
+            }) &&
+            std::ranges::any_of(query.tokens, [](const std::string& item) {
+                return item == "byte" || item == "bytes";
+            });
+
+        if (token.size() < 2 || token.starts_with('-') || numeric || human_readable_modifier ||
             (is_stopword(token) && !relational_usage)) {
             continue;
         }

@@ -10,31 +10,46 @@
 
 #include <sys/stat.h>
 
+#include "acclorite/answer/binder.hpp"
+#include "acclorite/answer/composer.hpp"
+#include "acclorite/answer/safety_classifier.hpp"
 #include "acclorite/core/query.hpp"
 #include "acclorite/core/search_engine.hpp"
 #include "acclorite/diagnostics/doctor.hpp"
 #include "acclorite/output/json_renderer.hpp"
 #include "acclorite/output/terminal_renderer.hpp"
+#include "acclorite/output/shell_renderer.hpp"
 #include "acclorite/output/doctor_json_renderer.hpp"
+#include "acclorite/output/doctor_terminal_renderer.hpp"
 #include "acclorite/query/fuzzy.hpp"
 #include "acclorite/query/frame.hpp"
+#include "acclorite/query/action_target.hpp"
 #include "acclorite/query/targets.hpp"
 #include "acclorite/query/lexicon.hpp"
 #include "acclorite/query/relevance.hpp"
 #include "acclorite/ranking/preference.hpp"
 #include "acclorite/ranking/confidence.hpp"
+#include "acclorite/sources/apt_source.hpp"
 #include "acclorite/sources/desktop_source.hpp"
+#include "acclorite/sources/dnf_source.hpp"
+#include "acclorite/sources/zypper_source.hpp"
+#include "acclorite/sources/xbps_source.hpp"
 #include "acclorite/sources/index_source.hpp"
 #include "acclorite/sources/filesystem_location_source.hpp"
 #include "acclorite/sources/man_source.hpp"
 #include "acclorite/sources/pacman_source.hpp"
 #include "acclorite/sources/path_source.hpp"
 #include "acclorite/sources/pkgfile_enricher.hpp"
+#include "acclorite/system/distro.hpp"
 #include "acclorite/guidance/man_provider.hpp"
 #include "acclorite/guidance/info_provider.hpp"
 #include "acclorite/guidance/tldr_provider.hpp"
 #include "acclorite/guidance/curated_provider.hpp"
 #include "acclorite/guidance/provider.hpp"
+#include "acclorite/syntax/man_provider.hpp"
+#include "acclorite/syntax/fish_completion_provider.hpp"
+#include "acclorite/syntax/grammar_merge.hpp"
+#include "acclorite/syntax/provider.hpp"
 
 namespace {
 
@@ -135,6 +150,285 @@ void write_pacman_fixture(const std::filesystem::path& directory, const std::str
     write_executable(directory / "pacman", script);
 }
 
+void write_apt_cache_fixture(
+    const std::filesystem::path& directory,
+    const std::string& search_output,
+    const bool stats_ready = true,
+    const std::string& show_output = {}
+) {
+    std::string script =
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"stats\" ]; then\n"
+        "  " + std::string(stats_ready ? "printf '%s\\n' 'Total package names: 123'\n  exit 0\n"
+                                  : "exit 100\n") +
+        "fi\n"
+        "if [ \"$1\" = \"search\" ]; then\n";
+    std::istringstream lines(search_output);
+    std::string line;
+    while (std::getline(lines, line)) {
+        std::string escaped;
+        for (const char ch : line) {
+            if (ch == '\\' || ch == '\"' || ch == '$' || ch == '`') {
+                escaped.push_back('\\');
+            }
+            escaped.push_back(ch);
+        }
+        script += "  printf '%s\\n' \"" + escaped + "\"\n";
+    }
+    script += "  exit 0\nfi\n";
+    script += "if [ \"$1\" = \"show\" ]; then\n";
+    std::istringstream show_lines(show_output);
+    while (std::getline(show_lines, line)) {
+        std::string escaped;
+        for (const char ch : line) {
+            if (ch == '\\' || ch == '\"' || ch == '$' || ch == '`') {
+                escaped.push_back('\\');
+            }
+            escaped.push_back(ch);
+        }
+        script += "  printf '%s\\n' \"" + escaped + "\"\n";
+    }
+    script += "  exit 0\nfi\nexit 2\n";
+    write_executable(directory / "apt-cache", script);
+}
+
+void write_dpkg_query_fixture(const std::filesystem::path& directory, const std::string& output) {
+    std::string script = "#!/bin/sh\n";
+    std::istringstream lines(output);
+    std::string line;
+    while (std::getline(lines, line)) {
+        std::string escaped;
+        for (const char ch : line) {
+            if (ch == '\\' || ch == '\"' || ch == '$' || ch == '`') {
+                escaped.push_back('\\');
+            }
+            escaped.push_back(ch);
+        }
+        script += "printf '%s\\n' \"" + escaped + "\"\n";
+    }
+    write_executable(directory / "dpkg-query", script);
+}
+
+
+void write_dnf_fixture(
+    const std::filesystem::path& directory,
+    const std::string& frontend,
+    const std::string& search_output,
+    const std::string& repoquery_output,
+    const std::filesystem::path& forbidden_marker = {}
+) {
+    std::string script =
+        "#!/bin/sh\n"
+        "if [ \"$1\" != \"--cacheonly\" ]; then\n";
+    if (!forbidden_marker.empty()) {
+        script += "  printf x > '" + forbidden_marker.string() + "'\n";
+    }
+    script +=
+        "  exit 99\n"
+        "fi\n"
+        "shift\n"
+        "if [ \"$1\" = \"search\" ]; then\n";
+
+    std::istringstream search_lines(search_output);
+    std::string line;
+    while (std::getline(search_lines, line)) {
+        std::string escaped;
+        for (const char ch : line) {
+            if (ch == '\\' || ch == '"' || ch == '$' || ch == '`') {
+                escaped.push_back('\\');
+            }
+            escaped.push_back(ch);
+        }
+        script += "  printf '%s\\n' \"" + escaped + "\"\n";
+    }
+    script +=
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = \"repoquery\" ]; then\n";
+    std::istringstream repo_lines(repoquery_output);
+    while (std::getline(repo_lines, line)) {
+        std::string escaped;
+        for (const char ch : line) {
+            if (ch == '\\' || ch == '"' || ch == '$' || ch == '`') {
+                escaped.push_back('\\');
+            }
+            escaped.push_back(ch);
+        }
+        script += "  printf '%s\\n' \"" + escaped + "\"\n";
+    }
+    script += "  exit 0\nfi\n";
+    if (!forbidden_marker.empty()) {
+        script += "printf x > '" + forbidden_marker.string() + "'\n";
+    }
+    script += "exit 99\n";
+    write_executable(directory / frontend, script);
+}
+
+
+void write_zypper_fixture(
+    const std::filesystem::path& directory,
+    const std::string& search_xml,
+    const std::string& details_xml,
+    const std::filesystem::path& forbidden_marker = {}
+) {
+    auto shell_escape = [](const std::string& value) {
+        std::string out;
+        for (const char ch : value) {
+            if (ch == '\\' || ch == '"' || ch == '$' || ch == '`') {
+                out.push_back('\\');
+            }
+            out.push_back(ch);
+        }
+        return out;
+    };
+
+    std::string script =
+        "#!/bin/sh\n"
+        "fail() {\n";
+    if (!forbidden_marker.empty()) {
+        script += "  printf x > '" + forbidden_marker.string() + "'\n";
+    }
+    script +=
+        "  exit 99\n"
+        "}\n"
+        "case \" $* \" in *\" --no-refresh \"*) ;; *) fail ;; esac\n"
+        "case \" $* \" in *\" --non-interactive \"*) ;; *) fail ;; esac\n"
+        "case \" $* \" in *\" --xmlout \"*) ;; *) fail ;; esac\n"
+        "case \" $* \" in *\" --ignore-unknown \"*) ;; *) fail ;; esac\n"
+        "cfg=''\nprev=''\n"
+        "for arg in \"$@\"; do\n"
+        "  if [ \"$prev\" = '--config' ]; then cfg=\"$arg\"; fi\n"
+        "  prev=\"$arg\"\n"
+        "done\n"
+        "[ -n \"$cfg\" ] || fail\n"
+        "policy=0\n"
+        "while IFS= read -r line; do\n"
+        "  case \"$line\" in *runSearchPackages*never*) policy=1 ;; esac\n"
+        "done < \"$cfg\"\n"
+        "[ \"$policy\" = 1 ] || fail\n"
+        "case \" $* \" in *\" refresh \"*|*\" install \"*|*\" update \"*|*\" remove \"*|*\" dist-upgrade \"*) fail ;; esac\n"
+        "case \" $* \" in *\" search \"*) ;; *) fail ;; esac\n"
+        "case \" $* \" in\n"
+        "  *\" --details \"*)\n";
+    std::istringstream details(details_xml);
+    std::string line;
+    while (std::getline(details, line)) {
+        script += "    printf '%s\\n' \"" + shell_escape(line) + "\"\n";
+    }
+    script += "    ;;\n  *)\n";
+    std::istringstream search(search_xml);
+    while (std::getline(search, line)) {
+        script += "    printf '%s\\n' \"" + shell_escape(line) + "\"\n";
+    }
+    script += "    ;;\nesac\nexit 0\n";
+    write_executable(directory / "zypper", script);
+}
+
+
+void write_xbps_fixture(
+    const std::filesystem::path& directory,
+    const std::string& search_output,
+    const std::string& names_output,
+    const std::string& versions_output,
+    const std::filesystem::path& forbidden_marker = {},
+    const bool repositories_ready = true,
+    const std::string& installed_output = "[*] xbps-0.60.7_1"
+) {
+    auto shell_escape = [](const std::string& value) {
+        std::string out;
+        for (const char ch : value) {
+            if (ch == '\\' || ch == '"' || ch == '$' || ch == '`') {
+                out.push_back('\\');
+            }
+            out.push_back(ch);
+        }
+        return out;
+    };
+    const auto append_lines = [&](std::string& script, const std::string& output, const std::string& indent) {
+        std::istringstream lines(output);
+        std::string line;
+        while (std::getline(lines, line)) {
+            script += indent + "printf '%s\\n' \"" + shell_escape(line) + "\"\n";
+        }
+    };
+
+    std::string query_script =
+        "#!/bin/sh\n"
+        "fail() {\n";
+    if (!forbidden_marker.empty()) {
+        query_script += "  printf x > '" + forbidden_marker.string() + "'\n";
+    }
+    query_script +=
+        "  exit 99\n"
+        "}\n"
+        "for arg in \"$@\"; do\n"
+        "  case \"$arg\" in -M|--memory-sync|--repository|--repository=*) fail ;; esac\n"
+        "done\n"
+        "if [ \"$1\" = '-L' ]; then\n";
+    if (repositories_ready) {
+        query_script += "  printf '%s\\n' '123 https://repo-default.voidlinux.org/current'\n";
+    } else {
+        query_script += "  printf '%s\\n' '-1 https://repo-default.voidlinux.org/current'\n";
+    }
+    query_script +=
+        "  exit 0\n"
+        "fi\n"
+        "if [ \"$1\" = '-l' ]; then\n";
+    append_lines(query_script, installed_output, "  ");
+    query_script +=
+        "  exit 0\n"
+        "fi\n"
+        "has_regex=0\nhas_search=0\n"
+        "for arg in \"$@\"; do\n"
+        "  [ \"$arg\" = '--regex' ] && has_regex=1\n"
+        "  [ \"$arg\" = '-Rs' ] && has_search=1\n"
+        "done\n"
+        "[ \"$has_regex\" = 1 ] && [ \"$has_search\" = 1 ] || fail\n";
+    append_lines(query_script, search_output, "");
+    query_script += "exit 0\n";
+    write_executable(directory / "xbps-query", query_script);
+
+    std::string helper_script =
+        "#!/bin/sh\n"
+        "case \"$1\" in\n"
+        "  getpkgname)\n";
+    append_lines(helper_script, names_output, "    ");
+    helper_script += "    exit 0 ;;\n  getpkgversion)\n";
+    append_lines(helper_script, versions_output, "    ");
+    helper_script += "    exit 0 ;;\n  *) exit 99 ;;\nesac\n";
+    write_executable(directory / "xbps-uhelper", helper_script);
+}
+
+void write_rpm_fixture(const std::filesystem::path& directory, const std::string& output) {
+    std::string script = "#!/bin/sh\n";
+    std::istringstream lines(output);
+    std::string line;
+    while (std::getline(lines, line)) {
+        std::string escaped;
+        for (const char ch : line) {
+            if (ch == '\\' || ch == '"' || ch == '$' || ch == '`') {
+                escaped.push_back('\\');
+            }
+            escaped.push_back(ch);
+        }
+        script += "printf '%s\\n' \"" + escaped + "\"\n";
+    }
+    script += "exit 0\n";
+    write_executable(directory / "rpm", script);
+}
+
+void write_os_release_fixture(
+    const std::filesystem::path& path,
+    const std::string& id,
+    const std::string& id_like = {}
+) {
+    std::ofstream file(path);
+    file << "ID=" << id << '\n';
+    if (!id_like.empty()) {
+        file << "ID_LIKE=\"" << id_like << "\"\n";
+    }
+}
+
 void write_expac_fixture(const std::filesystem::path& directory, const std::string& output) {
     std::string script = "#!/bin/sh\n";
     std::istringstream lines(output);
@@ -204,6 +498,35 @@ void write_man_page_fixture(const std::filesystem::path& directory, const std::s
         }
         script += "printf '%s\\n' \"" + escaped + "\"\n";
     }
+    write_executable(directory / "man", script);
+}
+
+void write_man_pages_fixture(
+    const std::filesystem::path& directory,
+    const std::vector<std::pair<std::string, std::string>>& pages
+) {
+    auto shell_escape = [](const std::string& value) {
+        std::string out;
+        for (const char ch : value) {
+            if (ch == '\\' || ch == '"' || ch == '$' || ch == '`') {
+                out.push_back('\\');
+            }
+            out.push_back(ch);
+        }
+        return out;
+    };
+
+    std::string script = "#!/bin/sh\npage=\"$2\"\ncase \"$page\" in\n";
+    for (const auto& [name, output] : pages) {
+        script += "  " + shell_escape(name) + ")\n";
+        std::istringstream lines(output);
+        std::string line;
+        while (std::getline(lines, line)) {
+            script += "    printf '%s\\n' \"" + shell_escape(line) + "\"\n";
+        }
+        script += "    exit 0\n    ;;\n";
+    }
+    script += "  *) exit 1 ;;\nesac\n";
     write_executable(directory / "man", script);
 }
 
@@ -414,6 +737,12 @@ void test_query_frame_recognizer_handles_normal_and_cursed_questions() {
                  "what-is-the-command is discovery rather than explanation");
     expect_frame("what is ripgrep", acclorite::QueryFrame::Explain, true,
                  "what-is entity question is explanation");
+    expect_frame("what flag makes curl follow redirects", acclorite::QueryFrame::Explain, true,
+                 "what-flag capability question is explanation");
+    expect_frame("which rg flag includes hidden files", acclorite::QueryFrame::Explain, true,
+                 "which-flag capability question is explanation");
+    expect_frame("which git subcommand creates a branch", acclorite::QueryFrame::Explain, true,
+                 "which-subcommand capability question is explanation");
     expect_frame("where is ssh config", acclorite::QueryFrame::Locate, true,
                  "where-is path question is location");
     expect_frame("where's ssh config", acclorite::QueryFrame::Locate, true,
@@ -428,8 +757,131 @@ void test_query_frame_recognizer_handles_normal_and_cursed_questions() {
                  "why/refusing query is diagnosis");
     expect_frame("bro where tf can i see what is eating ram", acclorite::QueryFrame::Inspect, true,
                  "messy human question still resolves to inspection");
+    expect_frame("What is that command that can extract tar.gz files in terminal",
+                 acclorite::QueryFrame::Discover, true,
+                 "half-remembered what-is-that-command phrasing remains discovery");
+    expect_frame("what can compare these two directories and tell me what's different",
+                 acclorite::QueryFrame::Discover, false,
+                 "task-object compare phrasing is discovery rather than entity comparison");
+    expect_frame("who tf owns port 3000", acclorite::QueryFrame::Inspect, true,
+                 "slang ownership question still resolves to inspection");
+    expect_frame("what terminal thing tells me which process stole port 8080",
+                 acclorite::QueryFrame::Inspect, true,
+                 "metaphorical port-ownership wording still resolves to inspection");
+    expect_frame("git make a fresh branch called feature/foo and put me on it",
+                 acclorite::QueryFrame::Modify, true,
+                 "command-addressed branch creation sentence resolves to modification");
     expect_frame("fuzzy directory jumping thing", acclorite::QueryFrame::Discover, false,
                  "unframed human request safely defaults to discovery");
+}
+
+void test_action_target_parser_separates_command_syntax_from_language() {
+    {
+        const auto query = acclorite::Query::parse("what does curl -L do");
+        const auto target = acclorite::query::detect_action_target(query);
+        expect(target.has_value() && target->kind == acclorite::ActionTargetKind::Option,
+               "explicit short option becomes a first-class option target");
+        if (target) {
+            expect(target->command == "curl" && target->literal == "-L" && target->explicit_syntax,
+                   "explicit option target preserves parent command and case-sensitive literal syntax");
+        }
+    }
+
+    {
+        const auto query = acclorite::Query::parse("what does rg -. do");
+        const auto target = acclorite::query::detect_action_target(query);
+        expect(target.has_value() && target->kind == acclorite::ActionTargetKind::Option,
+               "punctuation short option becomes a first-class option target");
+        if (target) {
+            expect(target->command == "rg" && target->literal == "-." && target->explicit_syntax,
+                   "raw syntax tokenization preserves punctuation-valued short options exactly");
+        }
+    }
+
+    {
+        const auto query = acclorite::Query::parse("what flag makes curl follow redirects");
+        const auto target = acclorite::query::detect_action_target(query);
+        expect(target.has_value() && target->kind == acclorite::ActionTargetKind::Option,
+               "natural-language flag request becomes a first-class option target");
+        if (target) {
+            expect(target->command == "curl" && !target->literal && !target->explicit_syntax,
+                   "semantic option target resolves the parent command without inventing flag syntax");
+            expect(target->terms.size() == 2 && target->terms[0] == "follow" && target->terms[1] == "redirects",
+                   "semantic option target keeps capability terms separate from question scaffolding");
+        }
+    }
+
+    {
+        const auto query = acclorite::Query::parse("which rg flag includes hidden files");
+        const auto target = acclorite::query::detect_action_target(query);
+        expect(target.has_value() && target->command == "rg",
+               "flag parser handles parent command immediately before the flag noun");
+        if (target) {
+            expect(target->terms.size() == 2 && target->terms[0] == "hidden" && target->terms[1] == "files",
+                   "generic include/enabling language does not pollute capability matching terms");
+        }
+    }
+
+    {
+        const auto query = acclorite::Query::parse("which git subcommand creates a branch");
+        const auto target = acclorite::query::detect_action_target(query);
+        expect(target.has_value() && target->kind == acclorite::ActionTargetKind::Subcommand &&
+                   target->command == "git",
+               "subcommands are structurally recognizable before subcommand grammar parsing lands");
+        if (target) {
+            expect(target->terms.size() == 2 && target->terms[0] == "creates" && target->terms[1] == "branch",
+                   "subcommand target noun stays structural instead of leaking into capability terms");
+        }
+    }
+
+    {
+        const auto query = acclorite::Query::parse("which git subcommands create branches");
+        const auto target = acclorite::query::detect_action_target(query);
+        expect(target.has_value() && target->kind == acclorite::ActionTargetKind::Subcommand &&
+                   target->command == "git",
+               "plural subcommand noun produces the same structured target kind");
+    }
+
+    {
+        const auto query = acclorite::Query::parse("rg is skipping dotfiles, make it search them too");
+        const auto target = acclorite::query::detect_action_target(query);
+        expect(target.has_value() && target->kind == acclorite::ActionTargetKind::Operation &&
+                   target->command == "rg",
+               "command-addressed human sentence becomes an implicit operation target");
+        if (target) {
+            expect(target->terms.size() == 2 && target->terms[0] == "hidden" &&
+                       target->terms[1] == "files",
+                   "dotfile wording recovers compact hidden-files capability evidence");
+        }
+    }
+
+    {
+        const auto query = acclorite::Query::parse(
+            "curl keeps getting 3xx responses and stopping, make it follow the redirect"
+        );
+        const auto target = acclorite::query::detect_action_target(query);
+        expect(target.has_value() && target->kind == acclorite::ActionTargetKind::Operation &&
+                   target->command == "curl",
+               "named command is anchored without requiring the user to say flag");
+        if (target) {
+            expect(target->terms.size() == 2 && target->terms[0] == "follow" &&
+                       target->terms[1] == "redirect",
+                   "redirect complaint recovers grammar-facing operation terms");
+        }
+    }
+
+    {
+        const auto query = acclorite::Query::parse("ffmpeg start reading this video from 30 seconds in");
+        const auto target = acclorite::query::detect_action_target(query);
+        expect(target.has_value() && target->kind == acclorite::ActionTargetKind::Operation &&
+                   target->command == "ffmpeg",
+               "command-first seek request is preserved as an implicit operation");
+        if (target) {
+            expect(target->terms.size() == 2 && target->terms[0] == "seek" &&
+                       target->terms[1] == "position",
+                   "time-offset language recovers seek-position capability evidence");
+        }
+    }
 }
 
 void test_question_words_do_not_override_actual_action() {
@@ -1133,6 +1585,66 @@ void test_index_persists_semantic_catalog() {
     std::filesystem::remove_all(temp);
 }
 
+void test_failed_index_rebuild_preserves_last_good_snapshot() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-index-rebuild-recovery";
+    const auto bin = temp / "bin";
+    const auto apps = temp / "applications";
+    const auto db = temp / "cache/index.db";
+    const auto staging = std::filesystem::path(db.string() + ".rebuild");
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(bin);
+    std::filesystem::create_directories(apps);
+
+    write_executable(bin / "ark", "#!/bin/sh\nexit 0\n");
+    write_apropos_fixture(bin, "ark (1) - create and extract archive files\n");
+
+    {
+        ScopedPath scoped_path(bin);
+        ScopedEnv desktop_dirs("ACCLORITE_DESKTOP_DIRS", apps.string());
+        ScopedEnv index_path("ACCLORITE_INDEX_PATH", db.string());
+
+        acclorite::IndexSource source;
+        expect(source.rebuild(), "recovery fixture initial rebuild succeeds");
+        const auto before = acclorite::IndexSource::probe();
+        expect(before.ready, "recovery fixture starts with a valid index");
+        std::ifstream before_file(db, std::ios::binary);
+        const std::string before_bytes(
+            (std::istreambuf_iterator<char>(before_file)), std::istreambuf_iterator<char>()
+        );
+        expect(!before_bytes.empty(), "recovery fixture captures the live database bytes");
+
+        // Simulate a refresh environment that can no longer produce any catalog records.
+        // The old implementation deleted the live database before discovering this failure.
+        std::filesystem::remove(bin / "ark");
+        std::filesystem::remove(bin / "apropos");
+        {
+            std::ofstream orphan(staging);
+            orphan << "interrupted old staging file";
+        }
+
+        expect(!source.rebuild(), "empty-catalog rebuild reports failure");
+        expect(std::filesystem::exists(db), "failed rebuild preserves the live database");
+        expect(!std::filesystem::exists(staging), "failed rebuild cleans its staging database");
+        expect(!std::filesystem::exists(staging.string() + "-wal"),
+               "failed rebuild cleans staging WAL sidecar");
+        expect(!std::filesystem::exists(staging.string() + "-shm"),
+               "failed rebuild cleans staging shared-memory sidecar");
+
+        const auto after = acclorite::IndexSource::probe();
+        expect(after.ready, "failed rebuild leaves the previous snapshot structurally ready");
+        expect(after.stale, "preserved snapshot is honestly reported as stale after source drift");
+
+        std::ifstream after_file(db, std::ios::binary);
+        const std::string after_bytes(
+            (std::istreambuf_iterator<char>(after_file)), std::istreambuf_iterator<char>()
+        );
+        expect(after_bytes == before_bytes,
+               "failed rebuild preserves the last known-good database byte-for-byte");
+    }
+
+    std::filesystem::remove_all(temp);
+}
+
 void test_index_keeps_hybrid_metadata() {
     const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-index-hybrid";
     const auto bin = temp / "bin";
@@ -1377,6 +1889,454 @@ void test_index_fingerprints_detect_manual_and_desktop_changes() {
 
 
 #endif
+
+void test_distro_detection_and_package_family_selection() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-distro-detection";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+
+    const auto cachyos = temp / "cachyos-release";
+    write_os_release_fixture(cachyos, "cachyos", "arch");
+    const auto arch = acclorite::system::detect_distro(cachyos);
+    expect(arch.family == acclorite::PackageFamily::Arch,
+           "CachyOS os-release resolves to the Arch package family");
+
+    const auto ubuntu = temp / "ubuntu-release";
+    write_os_release_fixture(ubuntu, "ubuntu", "debian");
+    const auto debian = acclorite::system::detect_distro(ubuntu);
+    expect(debian.family == acclorite::PackageFamily::Debian,
+           "Ubuntu os-release resolves to the Debian package family");
+
+    const auto fedora_release = temp / "fedora-release";
+    write_os_release_fixture(fedora_release, "fedora", "rhel");
+    const auto fedora = acclorite::system::detect_distro(fedora_release);
+    expect(fedora.family == acclorite::PackageFamily::Fedora,
+           "Fedora os-release resolves to the Fedora package family");
+
+    const auto opensuse_release = temp / "opensuse-release";
+    write_os_release_fixture(opensuse_release, "opensuse-tumbleweed", "suse opensuse");
+    const auto suse = acclorite::system::detect_distro(opensuse_release);
+    expect(suse.family == acclorite::PackageFamily::Suse,
+           "openSUSE os-release resolves to the SUSE package family");
+
+    const auto void_release = temp / "void-release";
+    write_os_release_fixture(void_release, "void");
+    const auto void_linux = acclorite::system::detect_distro(void_release);
+    expect(void_linux.family == acclorite::PackageFamily::Void,
+           "Void os-release resolves to the Void package family");
+
+    const acclorite::system::PackageBackendAvailability all{
+        .arch = true,
+        .debian = true,
+        .fedora = true,
+        .suse = true,
+        .void_linux = true,
+    };
+    expect(acclorite::system::choose_package_family(debian, all) == acclorite::PackageFamily::Debian,
+           "Debian os-release breaks a three-backend tie in favor of APT");
+    expect(acclorite::system::choose_package_family(fedora, all) == acclorite::PackageFamily::Fedora,
+           "Fedora os-release breaks a three-backend tie in favor of DNF");
+    expect(acclorite::system::choose_package_family(arch, all) == acclorite::PackageFamily::Arch,
+           "Arch os-release breaks a four-backend tie in favor of pacman");
+    expect(acclorite::system::choose_package_family(suse, all) == acclorite::PackageFamily::Suse,
+           "openSUSE os-release breaks a five-backend tie in favor of Zypper");
+    expect(acclorite::system::choose_package_family(void_linux, all) == acclorite::PackageFamily::Void,
+           "Void os-release breaks a five-backend tie in favor of XBPS");
+
+    acclorite::system::DistroInfo unknown;
+    expect(acclorite::system::choose_package_family(
+               unknown, {.arch = false, .debian = true, .fedora = false}) ==
+               acclorite::PackageFamily::Debian,
+           "a sole apt backend remains usable in a minimal chroot without os-release metadata");
+    expect(acclorite::system::choose_package_family(
+               unknown, {.arch = true, .debian = false, .fedora = false}) ==
+               acclorite::PackageFamily::Arch,
+           "a sole pacman backend remains usable in a minimal chroot without os-release metadata");
+    expect(acclorite::system::choose_package_family(
+               unknown, {.arch = false, .debian = false, .fedora = true, .suse = false}) ==
+               acclorite::PackageFamily::Fedora,
+           "a sole DNF backend remains usable in a minimal chroot without os-release metadata");
+    expect(acclorite::system::choose_package_family(
+               unknown, {.arch = false, .debian = false, .fedora = false, .suse = true}) ==
+               acclorite::PackageFamily::Suse,
+           "a sole Zypper backend remains usable in a minimal chroot without os-release metadata");
+    expect(acclorite::system::choose_package_family(
+               unknown, {.arch = false, .debian = false, .fedora = false, .suse = false, .void_linux = true}) ==
+               acclorite::PackageFamily::Void,
+           "a sole XBPS backend remains usable in a minimal chroot without os-release metadata");
+    expect(acclorite::system::choose_package_family(
+               unknown, {.arch = false, .debian = true, .fedora = true}) ==
+               acclorite::PackageFamily::Unknown,
+           "an unknown distro with multiple package backends remains conservative instead of guessing");
+
+    std::filesystem::remove_all(temp);
+}
+
+void test_package_backends_share_common_interface() {
+    std::unique_ptr<acclorite::PackageBackend> arch = std::make_unique<acclorite::PacmanSource>();
+    std::unique_ptr<acclorite::PackageBackend> debian = std::make_unique<acclorite::AptSource>();
+    std::unique_ptr<acclorite::PackageBackend> fedora = std::make_unique<acclorite::DnfSource>();
+    std::unique_ptr<acclorite::PackageBackend> suse = std::make_unique<acclorite::ZypperSource>();
+    std::unique_ptr<acclorite::PackageBackend> void_linux = std::make_unique<acclorite::XbpsSource>();
+    expect(arch->package_family() == acclorite::PackageFamily::Arch,
+           "PacmanSource satisfies the common Arch package backend contract");
+    expect(debian->package_family() == acclorite::PackageFamily::Debian,
+           "AptSource satisfies the common Debian package backend contract");
+    expect(fedora->package_family() == acclorite::PackageFamily::Fedora,
+           "DnfSource satisfies the common Fedora package backend contract");
+    expect(suse->package_family() == acclorite::PackageFamily::Suse,
+           "ZypperSource satisfies the common openSUSE package backend contract");
+    expect(void_linux->package_family() == acclorite::PackageFamily::Void,
+           "XbpsSource satisfies the common Void package backend contract");
+    expect(arch->backend_id() == "pacman" && debian->backend_id() == "apt" &&
+               fedora->backend_id() == "dnf" && suse->backend_id() == "zypper" &&
+               void_linux->backend_id() == "xbps",
+           "package backends expose stable backend identifiers");
+}
+
+void test_apt_source_discovers_uninstalled_debian_tool_offline() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-apt-uninstalled";
+    const auto marker = temp / "apt-get-called";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+
+    write_apt_cache_fixture(
+        temp,
+        "fdupes - Identifies or deletes duplicate files within specified directories\n"
+        "gettext - GNU internationalization utilities\n",
+        true,
+        "Package: fdupes\nVersion: 2.3.0-1\n\n"
+    );
+    write_executable(
+        temp / "apt-get",
+        "#!/bin/sh\nprintf x > '" + marker.string() + "'\nexit 99\n"
+    );
+
+    {
+        ScopedPath scoped_path(temp);
+        acclorite::AptSource source;
+        expect(source.available(), "fake apt-cache capability is detected");
+        const auto candidates = source.search(acclorite::Query::parse("duplicate files"));
+        expect(!candidates.empty(), "APT backend returns repository candidate from local metadata");
+        if (!candidates.empty()) {
+            const auto& best = candidates.front();
+            expect(best.command == "fdupes", "APT description discovers fdupes");
+            expect(!best.installed, "uninstalled APT package stays uninstalled");
+            expect(best.repository_available, "APT package is marked repository-available");
+            expect(best.package == "fdupes", "APT package identity is retained");
+            expect(best.package_version == "2.3.0-1", "APT cached repository version is retained");
+            expect(best.source == "apt", "APT provenance is retained");
+        }
+        expect(!std::filesystem::exists(marker),
+               "APT repository discovery never invokes apt-get or performs a package update");
+    }
+
+    std::filesystem::remove_all(temp);
+}
+
+void test_apt_installed_metadata_merges_with_local_tool() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-apt-merge";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+
+    write_executable(temp / "jq", "#!/bin/sh\nexit 0\n");
+    write_apt_cache_fixture(
+        temp,
+        "jq - lightweight and flexible command-line JSON processor\n",
+        true,
+        "Package: jq\nVersion: 1.7.1-4\n\n"
+    );
+    write_dpkg_query_fixture(temp, "jq\t1.7.1-3\tinstall ok installed\n");
+
+    {
+        ScopedPath scoped_path(temp);
+        acclorite::SearchEngine engine;
+        engine.add_source(std::make_unique<acclorite::PathSource>());
+        engine.add_source(std::make_unique<acclorite::AptSource>());
+
+        const auto result = engine.search(acclorite::Query::parse("jq"));
+        expect(!result.candidates.empty(), "local jq and APT metadata merge");
+        if (!result.candidates.empty()) {
+            const auto& best = result.candidates.front();
+            expect(best.command == "jq", "merged Debian package result remains jq");
+            expect(best.installed, "dpkg installed state survives package merge");
+            expect(best.repository_available, "APT repository availability survives package merge");
+            expect(best.path == (temp / "jq").string(), "PATH survives APT package merge");
+            expect(best.package == "jq", "APT package metadata survives merge");
+            expect(best.package_version == "1.7.1-4", "APT repository version is retained while dpkg supplies installed state");
+            expect(best.source.find("path") != std::string::npos, "merged result keeps PATH provenance");
+            expect(best.source.find("apt") != std::string::npos, "merged result keeps APT provenance");
+        }
+    }
+
+    std::filesystem::remove_all(temp);
+}
+
+
+void test_dnf_source_discovers_uninstalled_fedora_tool_offline() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-dnf-uninstalled";
+    const auto marker = temp / "forbidden-dnf-call";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+
+    write_dnf_fixture(
+        temp,
+        "dnf5",
+        "================ Name & Summary Matched: duplicate files =================\n"
+        "fdupes.x86_64: Identifies or deletes duplicate files within specified directories\n"
+        "gettext.x86_64   GNU internationalization utilities\n",
+        "fdupes\t2.3.0-6.fc42\tfedora\tIdentifies or deletes duplicate files within specified directories\n",
+        marker
+    );
+    // If both frontends exist, DNF5 must win deterministically. Invoking this
+    // dnf4 trap would prove frontend selection leaked or became order-dependent.
+    write_executable(
+        temp / "dnf",
+        "#!/bin/sh\nprintf x > '" + marker.string() + "'\nexit 99\n"
+    );
+
+    {
+        ScopedPath scoped_path(temp);
+        acclorite::DnfSource source;
+        expect(source.available(), "fake DNF5 capability is detected");
+        expect(acclorite::DnfSource::frontend() == std::optional<std::string>{"dnf5"},
+               "DNF5 is preferred when DNF4 and DNF5 coexist");
+        const auto candidates = source.search(acclorite::Query::parse("duplicate files"));
+        expect(!candidates.empty(), "DNF backend returns repository candidate from cached metadata");
+        if (!candidates.empty()) {
+            const auto& best = candidates.front();
+            expect(best.command == "fdupes", "DNF summary discovers fdupes");
+            expect(!best.installed, "uninstalled DNF package stays uninstalled");
+            expect(best.repository_available, "DNF package is marked repository-available");
+            expect(best.package == "fdupes", "DNF package identity is retained");
+            expect(best.repository == "fedora", "DNF repository identity is retained");
+            expect(best.package_version == "2.3.0-6.fc42", "DNF cached repository EVR is retained");
+            expect(best.source == "dnf", "DNF provenance is retained");
+        }
+        expect(!std::filesystem::exists(marker),
+               "DNF repository discovery always uses --cacheonly and never invokes mutation paths");
+    }
+
+    std::filesystem::remove_all(temp);
+}
+
+void test_dnf4_frontend_fallback_and_installed_metadata_merge() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-dnf4-merge";
+    const auto marker = temp / "forbidden-dnf-call";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+
+    write_executable(temp / "jq", "#!/bin/sh\nexit 0\n");
+    write_dnf_fixture(
+        temp,
+        "dnf",
+        "jq.x86_64 : Lightweight and flexible command-line JSON processor\n",
+        "jq\t1.7.1-8.fc41\tupdates\tLightweight and flexible command-line JSON processor\n",
+        marker
+    );
+    write_rpm_fixture(temp, "jq\t1.7.1-7.fc41\n");
+
+    {
+        ScopedPath scoped_path(temp);
+        expect(acclorite::DnfSource::frontend() == std::optional<std::string>{"dnf"},
+               "DNF4 is used when DNF5 is absent");
+
+        acclorite::SearchEngine engine;
+        engine.add_source(std::make_unique<acclorite::PathSource>());
+        engine.add_source(std::make_unique<acclorite::DnfSource>());
+
+        const auto result = engine.search(acclorite::Query::parse("jq"));
+        expect(!result.candidates.empty(), "local jq and DNF metadata merge");
+        if (!result.candidates.empty()) {
+            const auto& best = result.candidates.front();
+            expect(best.command == "jq", "merged Fedora package result remains jq");
+            expect(best.installed, "RPM installed state survives DNF package merge");
+            expect(best.repository_available, "DNF repository availability survives package merge");
+            expect(best.path == (temp / "jq").string(), "PATH survives DNF package merge");
+            expect(best.package == "jq", "DNF package metadata survives merge");
+            expect(best.repository == "updates", "DNF repository metadata survives merge");
+            expect(best.package_version == "1.7.1-8.fc41",
+                   "DNF repository EVR is retained while RPM supplies installed state");
+            expect(best.source.find("path") != std::string::npos,
+                   "merged result keeps PATH provenance");
+            expect(best.source.find("dnf") != std::string::npos,
+                   "merged result keeps DNF provenance");
+        }
+        expect(!std::filesystem::exists(marker),
+               "DNF4 fallback stays cache-only and read-only");
+    }
+
+    std::filesystem::remove_all(temp);
+}
+
+
+void test_zypper_source_discovers_uninstalled_opensuse_tool_offline() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-zypper-uninstalled";
+    const auto marker = temp / "forbidden-zypper-call";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+
+    write_zypper_fixture(
+        temp,
+        "<?xml version=\"1.0\"?>\n<stream><search-result><solvable-list>\n"
+        "<solvable status=\"not-installed\" name=\"fdupes\" summary=\"Identifies &amp; deletes duplicate files\" kind=\"package\"/>\n"
+        "<solvable status=\"not-installed\" name=\"gettext\" summary=\"GNU translations\" kind=\"package\"/>\n"
+        "</solvable-list></search-result></stream>\n",
+        "<?xml version=\"1.0\"?>\n<stream><search-result><solvable-list>\n"
+        "<solvable status=\"not-installed\" name=\"fdupes\" kind=\"package\" edition=\"2.3.0-1.2\" arch=\"x86_64\" repository=\"repo-oss\"/>\n"
+        "</solvable-list></search-result></stream>\n",
+        marker
+    );
+
+    {
+        ScopedPath scoped_path(temp);
+        acclorite::ZypperSource source;
+        expect(source.available(), "fake zypper plus bundled read-only config are detected");
+        const auto candidates = source.search(acclorite::Query::parse("duplicate files"));
+        expect(!candidates.empty(), "Zypper backend returns repository candidate from local metadata");
+        if (!candidates.empty()) {
+            const auto& best = candidates.front();
+            expect(best.command == "fdupes", "Zypper summary discovers fdupes");
+            expect(!best.installed, "uninstalled Zypper package stays uninstalled");
+            expect(best.repository_available, "Zypper package is marked repository-available");
+            expect(best.package == "fdupes", "Zypper package identity is retained");
+            expect(best.package_version == "2.3.0-1.2", "Zypper cached repository edition is retained");
+            expect(best.repository == "repo-oss", "Zypper repository identity is retained");
+            expect(best.summary.find("&") != std::string::npos,
+                   "Zypper XML entities are decoded in package summaries");
+            expect(best.source == "zypper", "Zypper provenance is retained");
+        }
+        expect(!std::filesystem::exists(marker),
+               "Zypper discovery forces read-only config, --no-refresh, and query-only commands");
+    }
+    std::filesystem::remove_all(temp);
+}
+
+void test_zypper_installed_metadata_merges_with_path() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-zypper-merge";
+    const auto marker = temp / "forbidden-zypper-call";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+
+    write_executable(temp / "jq", "#!/bin/sh\nexit 0\n");
+    write_zypper_fixture(
+        temp,
+        "<stream><search-result><solvable-list>\n"
+        "<solvable status=\"installed\" name=\"jq\" summary=\"Command-line JSON processor\" kind=\"package\"/>\n"
+        "</solvable-list></search-result></stream>\n",
+        "<stream><search-result><solvable-list>\n"
+        "<solvable status=\"other-version\" name=\"jq\" kind=\"package\" edition=\"1.6-1.1\" arch=\"x86_64\" repository=\"repo-oss\"/>\n"
+        "<solvable status=\"not-installed\" name=\"jq\" kind=\"package\" edition=\"1.7.1-2.1\" arch=\"x86_64\" repository=\"repo-update\"/>\n"
+        "<solvable status=\"installed\" name=\"jq\" kind=\"package\" edition=\"1.7-1.1\" arch=\"x86_64\" repository=\"@System\"/>\n"
+        "</solvable-list></search-result></stream>\n",
+        marker
+    );
+    write_rpm_fixture(temp, "jq\t1.7-1.1\n");
+
+    {
+        ScopedPath scoped_path(temp);
+        acclorite::SearchEngine engine;
+        engine.add_source(std::make_unique<acclorite::PathSource>());
+        engine.add_source(std::make_unique<acclorite::ZypperSource>());
+        const auto result = engine.search(acclorite::Query::parse("jq json processor"));
+        expect(!result.candidates.empty(), "PATH + Zypper search returns jq");
+        if (!result.candidates.empty()) {
+            const auto& best = result.candidates.front();
+            expect(best.command == "jq", "merged Zypper/PATH candidate keeps jq identity");
+            expect(best.installed, "RPM/PATH evidence marks Zypper candidate installed");
+            expect(best.path == (temp / "jq").string(), "PATH survives Zypper package merge");
+            expect(best.repository == "repo-update", "Zypper prefers repository-backed current candidate over @System");
+            expect(best.repository_available, "repository-backed Zypper detail remains installable");
+            expect(best.package_version == "1.7.1-2.1", "Zypper keeps current repository edition");
+            expect(best.source.find("path") != std::string::npos &&
+                       best.source.find("zypper") != std::string::npos,
+                   "merged result keeps PATH and Zypper provenance");
+        }
+        expect(!std::filesystem::exists(marker), "Zypper merge stays query-only and no-refresh");
+    }
+    std::filesystem::remove_all(temp);
+}
+
+
+void test_xbps_source_discovers_uninstalled_void_tool_offline() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-xbps-uninstalled";
+    const auto marker = temp / "forbidden-xbps-call";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+
+    write_xbps_fixture(
+        temp,
+        "[-] fdupes-2.3.0_1 Identifies or deletes duplicate files within specified directories\n"
+        "[-] gettext-0.22_2 GNU internationalization utilities\n",
+        "fdupes\ngettext\n",
+        "2.3.0_1\n0.22_2\n",
+        marker
+    );
+    write_executable(
+        temp / "xbps-install",
+        "#!/bin/sh\nprintf x > '" + marker.string() + "'\nexit 99\n"
+    );
+
+    {
+        ScopedPath scoped_path(temp);
+        acclorite::XbpsSource source;
+        expect(source.available(), "fake xbps-query/xbps-uhelper capability is detected");
+        const auto candidates = source.search(acclorite::Query::parse("duplicate files"));
+        expect(!candidates.empty(), "XBPS backend returns repository candidate from synchronized metadata");
+        if (!candidates.empty()) {
+            const auto& best = candidates.front();
+            expect(best.command == "fdupes", "XBPS short description discovers fdupes");
+            expect(!best.installed, "uninstalled XBPS package stays uninstalled");
+            expect(best.repository_available, "XBPS package is marked repository-available");
+            expect(best.package == "fdupes", "XBPS package identity is retained");
+            expect(best.package_version == "2.3.0_1", "XBPS repository version/revision is retained");
+            expect(best.source == "xbps", "XBPS provenance is retained");
+        }
+        expect(!std::filesystem::exists(marker),
+               "XBPS discovery never uses --memory-sync, explicit remote repositories, or xbps-install");
+    }
+    std::filesystem::remove_all(temp);
+}
+
+void test_xbps_installed_metadata_merges_with_path() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-xbps-merge";
+    const auto marker = temp / "forbidden-xbps-call";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+
+    write_executable(temp / "jq", "#!/bin/sh\nexit 0\n");
+    write_xbps_fixture(
+        temp,
+        "[*] jq-1.7.1_2 Lightweight and flexible command-line JSON processor\n",
+        "jq\n",
+        "1.7.1_2\n",
+        marker,
+        true,
+        "[*] jq-1.7.1_1"
+    );
+
+    {
+        ScopedPath scoped_path(temp);
+        acclorite::SearchEngine engine;
+        engine.add_source(std::make_unique<acclorite::PathSource>());
+        engine.add_source(std::make_unique<acclorite::XbpsSource>());
+        const auto result = engine.search(acclorite::Query::parse("jq json processor"));
+        expect(!result.candidates.empty(), "PATH + XBPS search returns jq");
+        if (!result.candidates.empty()) {
+            const auto& best = result.candidates.front();
+            expect(best.command == "jq", "merged XBPS/PATH candidate keeps jq identity");
+            expect(best.installed, "XBPS installed marker/PATH evidence marks candidate installed");
+            expect(best.path == (temp / "jq").string(), "PATH survives XBPS package merge");
+            expect(best.repository_available, "XBPS repository availability survives package merge");
+            expect(best.package_version == "1.7.1_2", "XBPS repository pkgver survives package merge");
+            expect(best.source.find("path") != std::string::npos &&
+                       best.source.find("xbps") != std::string::npos,
+                   "merged result keeps PATH and XBPS provenance");
+        }
+        expect(!std::filesystem::exists(marker), "XBPS merge remains synchronized-cache-only and read-only");
+    }
+    std::filesystem::remove_all(temp);
+}
 
 void test_pacman_source_discovers_uninstalled_arch_tool() {
     const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-pacman-uninstalled";
@@ -2164,6 +3124,173 @@ void write_pkgfile_missing_metadata_fixture(const std::filesystem::path& directo
     );
 }
 
+void test_doctor_reports_debian_backend_readiness() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-doctor-apt";
+    const auto bin = temp / "bin";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(bin);
+
+    write_apt_cache_fixture(bin, "fdupes - identify duplicate files\n", true);
+    write_dpkg_query_fixture(bin, "dpkg\t1.22.0\tinstall ok installed\n");
+    const auto os_release = temp / "os-release";
+    write_os_release_fixture(os_release, "ubuntu", "debian");
+
+    {
+        ScopedPath scoped_path(bin);
+        ScopedEnv distro_file("ACCLORITE_OS_RELEASE", os_release.string());
+        ScopedEnv index_path("ACCLORITE_INDEX_PATH", (temp / "index.db").string());
+        ScopedEnv desktop_dirs("ACCLORITE_DESKTOP_DIRS", (temp / "no-applications").string());
+        const auto report = acclorite::diagnostics::Doctor{}.run();
+        const auto* apt = find_doctor_check(report, "apt-cache");
+        const auto* dpkg = find_doctor_check(report, "dpkg-query");
+        const auto* search = find_doctor_check(report, "apt-search");
+        expect(apt != nullptr && apt->state == acclorite::diagnostics::DoctorState::Ready,
+               "Doctor reports readable local APT package metadata");
+        expect(dpkg != nullptr && dpkg->state == acclorite::diagnostics::DoctorState::Ready,
+               "Doctor reports readable dpkg installed-package state");
+        expect(search != nullptr && search->state == acclorite::diagnostics::DoctorState::Ready,
+               "Doctor reports Debian repository package discovery ready");
+        expect(find_doctor_check(report, "arch-search") == nullptr,
+               "Debian Doctor output does not clutter the report with inactive Arch checks");
+    }
+
+    std::filesystem::remove_all(temp);
+}
+
+
+void test_doctor_reports_fedora_backend_readiness() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-doctor-dnf";
+    const auto bin = temp / "bin";
+    const auto marker = temp / "forbidden-dnf-call";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(bin);
+
+    write_dnf_fixture(
+        bin,
+        "dnf5",
+        "rpm.x86_64 : RPM package manager\n",
+        "rpm\t4.19.1.1-3.fc42\tfedora\tRPM package manager\n",
+        marker
+    );
+    write_rpm_fixture(bin, "rpm\t4.19.1.1-2.fc42\n");
+    const auto os_release = temp / "os-release";
+    write_os_release_fixture(os_release, "fedora", "rhel");
+
+    {
+        ScopedPath scoped_path(bin);
+        ScopedEnv distro_file("ACCLORITE_OS_RELEASE", os_release.string());
+        ScopedEnv index_path("ACCLORITE_INDEX_PATH", (temp / "index.db").string());
+        ScopedEnv desktop_dirs("ACCLORITE_DESKTOP_DIRS", (temp / "no-applications").string());
+        const auto report = acclorite::diagnostics::Doctor{}.run();
+        const auto* cache = find_doctor_check(report, "dnf-cache");
+        const auto* rpm = find_doctor_check(report, "rpm-query");
+        const auto* search = find_doctor_check(report, "dnf-search");
+        expect(cache != nullptr && cache->state == acclorite::diagnostics::DoctorState::Ready,
+               "Doctor reports readable cache-only DNF metadata");
+        expect(rpm != nullptr && rpm->state == acclorite::diagnostics::DoctorState::Ready,
+               "Doctor reports readable RPM installed-package state");
+        expect(search != nullptr && search->state == acclorite::diagnostics::DoctorState::Ready,
+               "Doctor reports Fedora repository package discovery ready");
+        expect(find_doctor_check(report, "arch-search") == nullptr,
+               "Fedora Doctor output does not include inactive Arch checks");
+        expect(find_doctor_check(report, "apt-search") == nullptr,
+               "Fedora Doctor output does not include inactive Debian checks");
+        expect(!std::filesystem::exists(marker),
+               "Fedora Doctor probe uses --cacheonly and no mutation path");
+    }
+
+    std::filesystem::remove_all(temp);
+}
+
+
+void test_doctor_reports_opensuse_backend_readiness() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-doctor-zypper";
+    const auto bin = temp / "bin";
+    const auto marker = temp / "forbidden-zypper-call";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(bin);
+
+    write_zypper_fixture(
+        bin,
+        "<stream><search-result><solvable-list><solvable status=\"installed\" name=\"rpm\" summary=\"RPM package manager\" kind=\"package\"/></solvable-list></search-result></stream>\n",
+        "<stream><search-result><solvable-list><solvable status=\"installed\" name=\"rpm\" kind=\"package\" edition=\"4.20.1-1.1\" arch=\"x86_64\" repository=\"repo-oss\"/></solvable-list></search-result></stream>\n",
+        marker
+    );
+    write_rpm_fixture(bin, "rpm\t4.20.1-1.1\n");
+    const auto os_release = temp / "os-release";
+    write_os_release_fixture(os_release, "opensuse-tumbleweed", "suse opensuse");
+
+    {
+        ScopedPath scoped_path(bin);
+        ScopedEnv distro_file("ACCLORITE_OS_RELEASE", os_release.string());
+        ScopedEnv index_path("ACCLORITE_INDEX_PATH", (temp / "index.db").string());
+        ScopedEnv desktop_dirs("ACCLORITE_DESKTOP_DIRS", (temp / "no-applications").string());
+        const auto report = acclorite::diagnostics::Doctor{}.run();
+        const auto* cache = find_doctor_check(report, "zypper-cache");
+        const auto* rpm = find_doctor_check(report, "rpm-query");
+        const auto* search = find_doctor_check(report, "zypper-search");
+        expect(cache != nullptr && cache->state == acclorite::diagnostics::DoctorState::Ready,
+               "Doctor reports readable no-refresh Zypper metadata");
+        expect(rpm != nullptr && rpm->state == acclorite::diagnostics::DoctorState::Ready,
+               "Doctor reports readable RPM state on openSUSE");
+        expect(search != nullptr && search->state == acclorite::diagnostics::DoctorState::Ready,
+               "Doctor reports openSUSE repository discovery ready");
+        expect(find_doctor_check(report, "arch-search") == nullptr &&
+                   find_doctor_check(report, "apt-search") == nullptr &&
+                   find_doctor_check(report, "dnf-search") == nullptr,
+               "openSUSE Doctor output excludes inactive Arch/Debian/Fedora checks");
+        expect(!std::filesystem::exists(marker),
+               "openSUSE Doctor uses the read-only Zypper config and --no-refresh");
+    }
+    std::filesystem::remove_all(temp);
+}
+
+
+void test_doctor_reports_void_backend_readiness() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-doctor-xbps";
+    const auto bin = temp / "bin";
+    const auto marker = temp / "forbidden-xbps-call";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(bin);
+
+    write_xbps_fixture(
+        bin,
+        "[*] xbps-0.60.7_1 XBPS package manager\n",
+        "xbps\n",
+        "0.60.7_1\n",
+        marker,
+        true,
+        "[*] xbps-0.60.7_1"
+    );
+    const auto os_release = temp / "os-release";
+    write_os_release_fixture(os_release, "void");
+
+    {
+        ScopedPath scoped_path(bin);
+        ScopedEnv distro_file("ACCLORITE_OS_RELEASE", os_release.string());
+        ScopedEnv index_path("ACCLORITE_INDEX_PATH", (temp / "index.db").string());
+        ScopedEnv desktop_dirs("ACCLORITE_DESKTOP_DIRS", (temp / "no-applications").string());
+        const auto report = acclorite::diagnostics::Doctor{}.run();
+        const auto* cache = find_doctor_check(report, "xbps-cache");
+        const auto* pkgdb = find_doctor_check(report, "xbps-pkgdb");
+        const auto* search = find_doctor_check(report, "xbps-search");
+        expect(cache != nullptr && cache->state == acclorite::diagnostics::DoctorState::Ready,
+               "Doctor reports readable synchronized XBPS repository indexes");
+        expect(pkgdb != nullptr && pkgdb->state == acclorite::diagnostics::DoctorState::Ready,
+               "Doctor reports readable XBPS installed-package state");
+        expect(search != nullptr && search->state == acclorite::diagnostics::DoctorState::Ready,
+               "Doctor reports Void repository discovery ready");
+        expect(find_doctor_check(report, "arch-search") == nullptr &&
+                   find_doctor_check(report, "apt-search") == nullptr &&
+                   find_doctor_check(report, "dnf-search") == nullptr &&
+                   find_doctor_check(report, "zypper-search") == nullptr,
+               "Void Doctor output excludes inactive Arch/Debian/Fedora/openSUSE checks");
+        expect(!std::filesystem::exists(marker),
+               "Void Doctor never enables XBPS memory-sync or mutation paths");
+    }
+    std::filesystem::remove_all(temp);
+}
+
 void test_doctor_is_read_only_when_index_is_missing() {
     const auto temp = std::filesystem::temp_directory_path() / "acclorite-test-doctor-read-only";
     std::filesystem::remove_all(temp);
@@ -2858,6 +3985,212 @@ void test_full_text_request_keeps_search_engine_specialization_relevant() {
 
 
 
+void test_human_discovery_modifiers_do_not_dilute_parent_tool_intent() {
+    auto query = acclorite::Query::parse("need a command for folder size but readable not raw bytes");
+    query.frame = acclorite::query::recognize_frame(query);
+    const auto groups = acclorite::query::concept_groups(query);
+
+    const auto has = [&](const std::string_view term) {
+        return std::ranges::any_of(groups, [&](const auto& group) { return group.term == term; });
+    };
+    expect(has("usage"), "folder-size phrasing retains the filesystem usage operation");
+    expect(has("folder") || has("folders") || has("file") || has("files"),
+           "folder-size phrasing retains filesystem object context");
+    expect(!has("readable") && !has("raw") && !has("bytes"),
+           "human-readable output modifiers do not become full-weight discovery subjects");
+}
+
+void test_query_relative_role_specificity_handles_hostile_human_collisions() {
+    {
+        auto query = acclorite::Query::parse(
+            "What is that command that can extract tar.gz files in terminal"
+        );
+        query.frame = acclorite::query::recognize_frame(query);
+
+        acclorite::Candidate observer{
+            .command = "ptargrep",
+            .summary = "Apply pattern matching to the contents of files in a tar archive",
+            .source = "path+man",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.8634,
+            .score = 0.9248,
+        };
+        acclorite::Candidate tar{
+            .command = "tar",
+            .summary = "an archiving utility",
+            .source = "path+man",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.5913,
+            .score = 0.6760,
+        };
+
+        const auto observer_fit = acclorite::ranking::assess_semantic_fit(query, observer);
+        const auto tar_fit = acclorite::ranking::assess_semantic_fit(query, tar);
+        expect(observer_fit.effective_fit < 0.60,
+               "archive search/inspection role is demoted for explicit extraction intent");
+        expect(tar_fit.effective_fit >= 0.84,
+               "exact archive-format front door receives positive extraction-role evidence");
+        expect(tar_fit.effective_fit > observer_fit.effective_fit,
+               "tar extraction front door outranks archive-content search role semantically");
+        expect(std::ranges::any_of(observer_fit.adjustments, [](const auto& adjustment) {
+                   return adjustment.id == "archive-observer-role";
+               }),
+               "archive observer-role conflict remains traceable");
+    }
+
+    {
+        auto query = acclorite::Query::parse(
+            "what can compare these two directories and tell me what's different"
+        );
+        query.frame = acclorite::query::recognize_frame(query);
+
+        acclorite::Candidate image_compare{
+            .command = "compare",
+            .summary = "compare images and annotate pixel differences",
+            .source = "path+man",
+            .package = "imagemagick",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.55,
+            .score = 0.62,
+        };
+        acclorite::Candidate diff{
+            .command = "diff",
+            .summary = "compare files line by line and report differences",
+            .source = "path+man",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.41,
+            .score = 0.48,
+        };
+
+        const auto image_fit = acclorite::ranking::assess_semantic_fit(query, image_compare);
+        const auto diff_fit = acclorite::ranking::assess_semantic_fit(query, diff);
+        expect(image_fit.effective_fit < 0.40,
+               "image comparison domain is demoted for directory comparison intent");
+        expect(diff_fit.effective_fit >= 0.84,
+               "file comparison front door receives positive directory-comparison evidence");
+        expect(diff_fit.effective_fit > image_fit.effective_fit,
+               "file comparison role beats same-spelled image comparison command");
+    }
+
+    {
+        auto query = acclorite::Query::parse("turn a bunch of png files into jpg from terminal");
+        query.frame = acclorite::query::recognize_frame(query);
+
+        acclorite::Candidate text_renderer{
+            .command = "img2txt",
+            .summary = "convert images to ANSI and ASCII text for terminal display",
+            .source = "path+man",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.58,
+            .score = 0.67,
+        };
+        acclorite::Candidate converter{
+            .command = "convert",
+            .summary = "convert between image formats",
+            .source = "path+man",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.44,
+            .score = 0.52,
+        };
+
+        const auto text_fit = acclorite::ranking::assess_semantic_fit(query, text_renderer);
+        const auto converter_fit = acclorite::ranking::assess_semantic_fit(query, converter);
+        expect(text_fit.effective_fit < 0.55,
+               "text/terminal renderer is demoted for image-to-image format conversion");
+        expect(converter_fit.effective_fit >= 0.84,
+               "image-format converter receives positive format-conversion evidence");
+        expect(converter_fit.effective_fit > text_fit.effective_fit,
+               "image-to-image front door beats image-to-text renderer");
+    }
+
+    {
+        auto query = acclorite::Query::parse(
+            "need a command for folder size but readable not raw bytes"
+        );
+        query.frame = acclorite::query::recognize_frame(query);
+
+        acclorite::Candidate object_size{
+            .command = "size",
+            .summary = "display object file section sizes",
+            .source = "path+man",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.48,
+            .score = 0.55,
+        };
+        acclorite::Candidate duf{
+            .command = "duf",
+            .summary = "Disk Usage/Free Utility",
+            .source = "path+man",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.30,
+            .score = 0.39,
+        };
+
+        const auto size_fit = acclorite::ranking::assess_semantic_fit(query, object_size);
+        const auto duf_fit = acclorite::ranking::assess_semantic_fit(query, duf);
+        expect(duf_fit.effective_fit >= 0.84,
+               "filesystem-usage front door receives positive folder-size evidence");
+        expect(duf_fit.effective_fit > size_fit.effective_fit,
+               "filesystem usage role beats unrelated executable named size");
+    }
+
+    {
+        auto query = acclorite::Query::parse(
+            "need a command for folder size but readable not raw bytes"
+        );
+        query.frame = acclorite::query::recognize_frame(query);
+
+        acclorite::Candidate msdos_usage{
+            .command = "mdu",
+            .summary = "display the amount of space occupied by an MSDOS directory",
+            .source = "path+man",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.86,
+            .score = 0.92,
+        };
+        acclorite::Candidate f2fs_resize{
+            .command = "resize.f2fs",
+            .summary = "resize filesystem size for an F2FS file system",
+            .source = "path+man",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.86,
+            .score = 0.91,
+        };
+        acclorite::Candidate generic_usage{
+            .command = "pdu",
+            .summary = "parallel disk usage directory tree analyzer",
+            .source = "path+man",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.84,
+            .score = 0.89,
+        };
+
+        const auto msdos_fit = acclorite::ranking::assess_semantic_fit(query, msdos_usage);
+        const auto f2fs_fit = acclorite::ranking::assess_semantic_fit(query, f2fs_resize);
+        const auto generic_fit = acclorite::ranking::assess_semantic_fit(query, generic_usage);
+        expect(msdos_fit.effective_fit < 0.70,
+               "generic folder-size intent demotes MS-DOS-specific usage tools");
+        expect(f2fs_fit.effective_fit < 0.70,
+               "generic folder-size intent demotes filesystem-specific resize tools");
+        expect(generic_fit.effective_fit >= 0.84,
+               "generic directory disk-usage analyzer remains a valid front door");
+        expect(generic_fit.effective_fit > msdos_fit.effective_fit &&
+                   generic_fit.effective_fit > f2fs_fit.effective_fit,
+               "generic disk-usage role beats filesystem-format-specific lookalikes");
+    }
+}
+
 class FrontDoorRoleSource final : public acclorite::KnowledgeSource {
 public:
     [[nodiscard]] bool available() const override { return true; }
@@ -3480,10 +4813,10 @@ void test_search_engine_attaches_confidence_without_changing_ranking() {
 
     std::ostringstream terminal;
     acclorite::TerminalRenderer{}.render(normal, terminal);
-    expect(terminal.str().find("Confidence") != std::string::npos,
-           "terminal output exposes confidence summary");
-    expect(terminal.str().find("ambiguous") != std::string::npos,
-           "terminal output exposes ambiguity state");
+    expect(terminal.str().find("⚠ needs clarification") != std::string::npos,
+           "terminal output exposes ambiguity as a compact warning");
+    expect(terminal.str().find("needs clarification") != std::string::npos,
+           "normal terminal output translates the internal ambiguity state into human wording");
     expect(terminal.str().find("Clarify") != std::string::npos,
            "terminal output exposes clarification choices for ambiguous queries");
 
@@ -3557,6 +4890,1377 @@ public:
 private:
     int* calls_{nullptr};
 };
+
+class CountingSyntaxProvider final : public acclorite::CommandSyntaxProvider {
+public:
+    explicit CountingSyntaxProvider(int* availability_calls, int* grammar_calls)
+        : availability_calls_(availability_calls), grammar_calls_(grammar_calls) {}
+
+    [[nodiscard]] bool available() const override {
+        if (availability_calls_) {
+            ++*availability_calls_;
+        }
+        return true;
+    }
+    [[nodiscard]] std::string_view diagnostic_name() const override { return "counting"; }
+    [[nodiscard]] std::optional<acclorite::CommandGrammar> grammar(
+        const acclorite::Candidate& candidate
+    ) const override {
+        if (grammar_calls_) {
+            ++*grammar_calls_;
+        }
+        acclorite::CommandGrammar grammar;
+        grammar.command = candidate.command;
+        return grammar;
+    }
+
+private:
+    int* availability_calls_{nullptr};
+    int* grammar_calls_{nullptr};
+};
+
+void test_man_syntax_provider_extracts_verified_grammar_without_executing_target() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-man-syntax-test";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+    const auto executed_marker = temp / "target-executed";
+
+    write_man_page_fixture(
+        temp,
+        "TOOL(1)\n"
+        "NAME\n"
+        "    tool - fixture\n"
+        "SYNOPSIS\n"
+        "    tool [OPTIONS] <input>\n"
+        "OPTIONS\n"
+        "    -q, --quiet\n"
+        "        Suppress ordinary output.\n"
+        "    -o, --output <path>\n"
+        "        Write the result to path.\n"
+        "    --color[=WHEN]\n"
+        "        Control color output.\n"
+        "    -L, --location\n"
+        "        Follow redi‐\n"
+        "        rects to a new location.\n"
+        "        --proxy-user may still be mentioned here as prose.\n"
+        "COMMANDS\n"
+        "    status [UNIT...|PID...]]\n"
+        "        Show status for one or more units.\n"
+        "    inspect [PATTERN…|PID…]\n"
+        "        Show runtime status information.\n"
+        "    mode start|stop\n"
+        "        Select a literal mode.\n"
+        "    tool-branch(1)\n"
+        "        List, create, or delete branches.\n"
+        "    This is category prose and must not become a subcommand.\n"
+        "EXAMPLES\n"
+        "    tool --quiet input\n"
+    );
+    write_executable(temp / "tool", "#!/bin/sh\ntouch '" + executed_marker.string() + "'\nexit 91\n");
+
+    {
+        ScopedPath scoped_path(temp);
+        acclorite::ManCommandSyntaxProvider provider;
+        expect(provider.available(), "man syntax provider detects local man executable");
+
+        const acclorite::Candidate candidate{
+            .command = "tool",
+            .summary = "fixture",
+            .source = "path+man",
+            .installed = true,
+            .cli_capable = true,
+        };
+        const auto grammar = provider.grammar(candidate);
+        expect(grammar.has_value(), "man syntax provider accepts proven local manual syntax");
+        if (grammar) {
+            expect(grammar->command == "tool", "command grammar preserves exact candidate identity");
+            expect(grammar->synopsis.size() == 1 && grammar->synopsis.front().text == "tool [OPTIONS] <input>",
+                   "man syntax parser preserves conservative SYNOPSIS text");
+            expect(grammar->global_options.size() == 4,
+                   "man syntax parser extracts option declarations without dumping prose");
+
+            const auto output = std::ranges::find_if(grammar->global_options, [](const acclorite::CommandOption& option) {
+                return std::ranges::find(option.names, "--output") != option.names.end();
+            });
+            expect(output != grammar->global_options.end(), "man syntax parser preserves option aliases");
+            if (output != grammar->global_options.end()) {
+                expect(output->takes_value && output->value_required && output->value_name == "path",
+                       "man syntax parser records directly proven required option values");
+                expect(output->description == "Write the result to path.",
+                       "man syntax parser associates indented option descriptions");
+                expect(output->provenance.source_kind == acclorite::SyntaxSourceKind::Man &&
+                           output->provenance.source_reference == "man:tool" &&
+                           output->provenance.section == "OPTIONS",
+                       "every accepted man option carries exact syntax provenance");
+            }
+
+            const auto color = std::ranges::find_if(grammar->global_options, [](const acclorite::CommandOption& option) {
+                return std::ranges::find(option.names, "--color") != option.names.end();
+            });
+            expect(color != grammar->global_options.end() && color->takes_value && !color->value_required &&
+                       color->value_name == "WHEN",
+                   "man syntax parser distinguishes attached optional values from required ones");
+
+            const auto location = std::ranges::find_if(grammar->global_options, [](const acclorite::CommandOption& option) {
+                return std::ranges::find(option.names, "--location") != option.names.end();
+            });
+            expect(location != grammar->global_options.end() &&
+                       location->description.find("Follow redirects to a new location.") != std::string::npos &&
+                       location->description.find("--proxy-user may still be mentioned here as prose") != std::string::npos,
+                   "man description joining removes groff wrap hyphens and keeps option-looking prose attached");
+            expect(std::ranges::none_of(grammar->global_options, [](const acclorite::CommandOption& option) {
+                return std::ranges::find(option.names, "--proxy-user") != option.names.end();
+            }), "wrapped option-looking prose is not promoted into fabricated grammar");
+            expect(grammar->subcommands.size() == 4,
+                   "man command sections conservatively produce verified subcommand grammar");
+            const auto unicode_signature = std::ranges::find_if(grammar->subcommands, [](const acclorite::SubcommandSpec& subcommand) {
+                return subcommand.name == "inspect";
+            });
+            expect(unicode_signature != grammar->subcommands.end(),
+                   "man subcommand parser accepts Unicode ellipsis in compact signatures");
+            const auto status = std::ranges::find_if(grammar->subcommands, [](const acclorite::SubcommandSpec& subcommand) {
+                return subcommand.name == "status";
+            });
+            expect(status != grammar->subcommands.end() && status->positionals.size() == 1 &&
+                       status->positionals.front().name == "UNIT|PID" &&
+                       !status->positionals.front().required &&
+                       status->positionals.front().variadic,
+                   "man subcommand parser tolerates one redundant trailing optional bracket while collapsing same-shape union slots");
+            expect(unicode_signature != grammar->subcommands.end() &&
+                       unicode_signature->positionals.size() == 1 &&
+                       unicode_signature->positionals.front().name == "PATTERN|PID" &&
+                       !unicode_signature->positionals.front().required &&
+                       unicode_signature->positionals.front().variadic,
+                   "Unicode-ellipsis alternative slots preserve bindable optional variadic grammar");
+            const auto literal_alternatives = std::ranges::find_if(grammar->subcommands, [](const acclorite::SubcommandSpec& subcommand) {
+                return subcommand.name == "mode";
+            });
+            expect(literal_alternatives != grammar->subcommands.end() && literal_alternatives->positionals.empty(),
+                   "literal command alternatives stay unbound instead of being flattened into a positional slot");
+            const auto branch = std::ranges::find_if(grammar->subcommands, [](const acclorite::SubcommandSpec& subcommand) {
+                return subcommand.name == "branch";
+            });
+            expect(branch != grammar->subcommands.end(),
+                   "man command references strip parent prefix and section suffix into subcommand identity");
+            if (branch != grammar->subcommands.end()) {
+                expect(branch->description.find("create") != std::string::npos &&
+                           branch->provenance.source_reference == "man:tool" &&
+                           branch->provenance.section == "COMMANDS",
+                       "verified subcommand preserves description and exact man provenance");
+            }
+            expect(std::ranges::none_of(grammar->subcommands, [](const acclorite::SubcommandSpec& subcommand) {
+                return subcommand.name == "This" || subcommand.name == "this";
+            }), "command-section prose is never promoted into fabricated subcommand grammar");
+        }
+
+        acclorite::Candidate unproven = candidate;
+        unproven.source = "path";
+        expect(!provider.grammar(unproven).has_value(),
+               "man syntax provider refuses grammar when existing sources did not prove a manual");
+    }
+
+    expect(!std::filesystem::exists(executed_marker),
+           "syntax extraction never executes the discovered target command");
+    std::filesystem::remove_all(temp);
+}
+
+
+void test_fish_completion_syntax_provider_parses_static_options_without_executing_shell() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-fish-syntax-test";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+    const auto executed_marker = temp / "executed";
+
+    {
+        std::ofstream completion(temp / "guide-tool.fish");
+        completion
+            << "function __dangerous_fixture\n"
+            << "    touch '" << executed_marker.string() << "'\n"
+            << "end\n"
+            << "complete -c guide-tool -s q -l quiet -d 'Suppress normal output.'\n"
+            << "complete --command guide-tool --short-option o --long-option output "
+               "--description 'Write exported output to a path.' --require-parameter --no-files\n"
+            << "complete -c guide-tool -l color -d 'Choose color mode.' -r -a 'auto always never'\n"
+            << "complete -c guide-tool -n '__fish_use_subcommand' -a 'run' -d 'Run a job.'\n"
+            << "complete -c guide-tool -n '__fish_use_subcommand' -a 'sync' -d 'Synchronize state.'\n"
+            << "complete -c guide-tool -n '__fish_seen_subcommand_from run' -l export -r "
+               "-d 'Export run output to a file.'\n"
+            << "complete -c guide-tool -n '__fish_seen_subcommand_from run sync' -xs p "
+               "-d 'Select a profile for this operation.'\n"
+            << "complete -c guide-tool -l ghost-context -d 'Unproven scope.' "
+               "-n '__fish_seen_subcommand_from ghost'\n"
+            << "complete -c guide-tool -l variable-context -d 'Variable scope.' "
+               "-n '__fish_seen_subcommand_from $run'\n"
+            << "complete -c guide-tool -l negated-context -d 'Negated scope.' "
+               "-n 'not __fish_seen_subcommand_from run'\n"
+            << "complete -c guide-tool -l chained-context -d 'Chained scope.' "
+               "-n '__fish_seen_subcommand_from run; and true'\n"
+            << "complete -c guide-tool -l generated -d 'Dynamic argument candidates.' "
+               "-a '(__fish_complete_command)'\n"
+            << "complete -c other-tool -l wrong-command -d 'Must not leak across command identity.'\n"
+            << "complete -c guide-tool -l unsafe; touch '" << executed_marker.string() << "'\n";
+    }
+    write_executable(temp / "fish", "#!/bin/sh\ntouch '" + executed_marker.string() + "'\nexit 97\n");
+    write_executable(temp / "guide-tool", "#!/bin/sh\ntouch '" + executed_marker.string() + "'\nexit 98\n");
+
+    {
+        ScopedPath scoped_path(temp);
+        acclorite::FishCompletionSyntaxProvider provider({temp});
+        expect(provider.available(), "Fish completion syntax provider detects configured completion roots");
+
+        const acclorite::Candidate candidate{
+            .command = "guide-tool",
+            .summary = "fixture",
+            .source = "path",
+            .installed = true,
+            .cli_capable = true,
+        };
+        const auto grammar = provider.grammar(candidate);
+        expect(grammar.has_value(), "Fish completion provider accepts exact static completion metadata");
+        if (grammar) {
+            expect(grammar->command == "guide-tool",
+                   "Fish completion grammar preserves exact candidate identity");
+            expect(grammar->global_options.size() == 3,
+                   "Fish parser keeps only understood unconditional static option declarations");
+
+            const auto output = std::ranges::find_if(grammar->global_options, [](const acclorite::CommandOption& option) {
+                return std::ranges::find(option.names, "--output") != option.names.end();
+            });
+            expect(output != grammar->global_options.end(),
+                   "Fish parser preserves static short/long option aliases");
+            if (output != grammar->global_options.end()) {
+                expect(output->names.size() == 2 && output->names.front() == "-o" && output->names.back() == "--output",
+                       "Fish parser renders canonical short and long option spellings");
+                expect(output->value_shape_known && output->takes_value && output->value_required && output->value_name == "VALUE",
+                       "Fish require-parameter metadata becomes a conservative required value slot");
+                expect(output->description == "Write exported output to a path.",
+                       "Fish static description text is retained as semantic evidence");
+                expect(output->provenance.source_kind == acclorite::SyntaxSourceKind::Completion &&
+                           output->provenance.source_reference.find("guide-tool.fish") != std::string::npos &&
+                           output->provenance.section == "complete",
+                       "Fish-derived syntax carries completion-file provenance");
+            }
+
+            const auto quiet = std::ranges::find_if(grammar->global_options, [](const acclorite::CommandOption& option) {
+                return std::ranges::find(option.names, "--quiet") != option.names.end();
+            });
+            expect(quiet != grammar->global_options.end() && !quiet->value_shape_known,
+                   "Fish declarations without parameter metadata preserve option identity but keep value shape unknown");
+
+            expect(std::ranges::none_of(grammar->global_options, [](const acclorite::CommandOption& option) {
+                return std::ranges::find(option.names, "--ghost-context") != option.names.end() ||
+                       std::ranges::find(option.names, "--variable-context") != option.names.end() ||
+                       std::ranges::find(option.names, "--negated-context") != option.names.end() ||
+                       std::ranges::find(option.names, "--chained-context") != option.names.end() ||
+                       std::ranges::find(option.names, "--generated") != option.names.end() ||
+                       std::ranges::find(option.names, "--unsafe") != option.names.end() ||
+                       std::ranges::find(option.names, "--wrong-command") != option.names.end();
+            }), "unsupported conditions, dynamic arguments, shell syntax, and foreign-command declarations never leak into global grammar");
+
+            expect(grammar->subcommands.size() == 2,
+                   "Fish literal __fish_use_subcommand declarations prove exactly two subcommands");
+            const auto run = std::ranges::find_if(grammar->subcommands, [](const acclorite::SubcommandSpec& subcommand) {
+                return subcommand.name == "run";
+            });
+            const auto sync = std::ranges::find_if(grammar->subcommands, [](const acclorite::SubcommandSpec& subcommand) {
+                return subcommand.name == "sync";
+            });
+            expect(run != grammar->subcommands.end() && sync != grammar->subcommands.end(),
+                   "Fish static argument candidates preserve literal subcommand identities");
+            if (run != grammar->subcommands.end()) {
+                expect(run->provenance.source_kind == acclorite::SyntaxSourceKind::Completion &&
+                           run->provenance.section == "complete / __fish_use_subcommand",
+                       "Fish-derived subcommands carry explicit condition provenance");
+                const auto export_option = std::ranges::find_if(run->options, [](const acclorite::CommandOption& option) {
+                    return std::ranges::find(option.names, "--export") != option.names.end();
+                });
+                const auto profile_option = std::ranges::find_if(run->options, [](const acclorite::CommandOption& option) {
+                    return std::ranges::find(option.names, "-p") != option.names.end();
+                });
+                expect(export_option != run->options.end() && export_option->value_shape_known &&
+                           export_option->takes_value && export_option->value_required,
+                       "literal seen-subcommand condition scopes a required-value option to the proven child");
+                expect(profile_option != run->options.end() && profile_option->value_shape_known &&
+                           profile_option->takes_value && profile_option->value_required,
+                       "compact Fish -xs syntax is parsed as exclusive required-value scoped option metadata");
+                expect(std::ranges::none_of(run->options, [](const acclorite::CommandOption& option) {
+                    return std::ranges::find(option.names, "--ghost-context") != option.names.end() ||
+                           std::ranges::find(option.names, "--variable-context") != option.names.end() ||
+                           std::ranges::find(option.names, "--negated-context") != option.names.end() ||
+                           std::ranges::find(option.names, "--chained-context") != option.names.end();
+                }), "only the allowlisted positive literal condition shape may scope child options");
+            }
+            if (sync != grammar->subcommands.end()) {
+                expect(std::ranges::any_of(sync->options, [](const acclorite::CommandOption& option) {
+                    return std::ranges::find(option.names, "-p") != option.names.end();
+                }), "one positive literal condition may safely scope the same option to multiple proven subcommands");
+                expect(std::ranges::none_of(sync->options, [](const acclorite::CommandOption& option) {
+                    return std::ranges::find(option.names, "--export") != option.names.end();
+                }), "subcommand-scoped Fish options never bleed into sibling subcommands");
+            }
+
+            if (run != grammar->subcommands.end()) {
+                const auto child = provider.subcommand_grammar(candidate, *run);
+                expect(child.has_value() && child->name == "run" && !child->options.empty(),
+                       "Fish provider exposes only parent-proven child grammar through the deep resolver contract");
+
+                acclorite::Query scoped_query = acclorite::Query::parse(
+                    "guide-tool run export output report.txt"
+                );
+                scoped_query.frame = acclorite::QueryFrameResult{
+                    .frame = acclorite::QueryFrame::Modify,
+                    .confidence = 0.99,
+                    .explicit_frame = true,
+                    .signals = {"fixture"},
+                };
+                scoped_query.action_target = acclorite::ActionTarget{
+                    .kind = acclorite::ActionTargetKind::Operation,
+                    .command = "guide-tool",
+                    .literal = std::nullopt,
+                    .terms = {"run", "export", "output"},
+                    .explicit_syntax = false,
+                };
+                const auto answer = acclorite::AnswerComposer::compose(
+                    scoped_query,
+                    candidate,
+                    *grammar,
+                    [&](const acclorite::SubcommandSpec& subcommand) {
+                        return provider.subcommand_grammar(candidate, subcommand);
+                    }
+                );
+                expect(answer.has_value() && answer->relevant_subcommands.size() == 1 &&
+                           answer->relevant_subcommands.front().name == "run" &&
+                           answer->relevant_options.size() == 1 &&
+                           std::ranges::find(answer->relevant_options.front().names, "--export") !=
+                               answer->relevant_options.front().names.end(),
+                       "scoped Fish child grammar participates in compound-operation composition");
+                expect(answer && answer->invocation &&
+                           answer->invocation->arguments.size() == 3 &&
+                           answer->invocation->arguments[0].value == "run" &&
+                           answer->invocation->arguments[1].value == "--export" &&
+                           answer->invocation->arguments[2].value == "report.txt" &&
+                           !answer->invocation->complete,
+                       "Fish condition scope can bind a verified child option template but never claims full command completeness without synopsis proof");
+            }
+        }
+
+        acclorite::SearchEngine engine;
+        engine.add_source(std::make_unique<GuidanceIntegrationSource>());
+        engine.add_syntax_provider(std::make_unique<acclorite::FishCompletionSyntaxProvider>(
+            std::vector<std::filesystem::path>{temp}
+        ));
+        const auto result = engine.search(acclorite::Query::parse("what does guide-tool --output do"), 10, false, true);
+        expect(result.actionable_answer.has_value() &&
+                   result.actionable_answer->relevant_options.size() == 1,
+               "Fish completion grammar participates in normal post-ranking actionable composition");
+        if (result.actionable_answer && !result.actionable_answer->relevant_options.empty()) {
+            expect(result.actionable_answer->relevant_options.front().provenance.source_kind ==
+                       acclorite::SyntaxSourceKind::Completion,
+                   "machine answer retains Fish completion authority instead of pretending it came from man");
+        }
+        expect(std::ranges::any_of(result.timing.stages, [](const acclorite::TimingStage& stage) {
+            return stage.name == "syntax:fish-completion";
+        }), "profiling exposes static Fish completion syntax cost separately");
+    }
+
+    expect(!std::filesystem::exists(executed_marker),
+           "static Fish completion parsing never executes fish, completion code, or the target command");
+    std::filesystem::remove_all(temp);
+}
+
+void test_syntax_evidence_merging_preserves_authority_and_combines_parent_child_facts() {
+    {
+        acclorite::CommandGrammar primary{
+            .command = "tool",
+            .global_options = {acclorite::CommandOption{
+                .names = {"-o", "--output"},
+                .description = "Write to FILE.",
+                .value_name = "FILE",
+                .value_shape_known = true,
+                .takes_value = true,
+                .value_required = true,
+                .provenance = acclorite::SyntaxProvenance{
+                    .source_kind = acclorite::SyntaxSourceKind::Man,
+                    .source_reference = "man:tool",
+                    .section = "OPTIONS",
+                },
+            }},
+            .subcommands = {acclorite::SubcommandSpec{
+                .name = "run",
+                .description = "Run a job.",
+                .options = {},
+                .positionals = {},
+                .provenance = acclorite::SyntaxProvenance{
+                    .source_kind = acclorite::SyntaxSourceKind::Man,
+                    .source_reference = "man:tool",
+                    .section = "COMMANDS",
+                },
+                .synopsis = {},
+            }},
+        };
+        const acclorite::CommandGrammar secondary{
+            .command = "tool",
+            .global_options = {
+                acclorite::CommandOption{
+                    .names = {"--output"},
+                    .description = "Completion description.",
+                    .value_name = std::nullopt,
+                    .value_shape_known = false,
+                    .takes_value = false,
+                    .value_required = false,
+                    .provenance = acclorite::SyntaxProvenance{
+                        .source_kind = acclorite::SyntaxSourceKind::Completion,
+                        .source_reference = "fish:/tmp/tool.fish",
+                        .section = "complete",
+                    },
+                },
+                acclorite::CommandOption{
+                    .names = {"--color"},
+                    .description = "Enable color.",
+                    .value_name = std::nullopt,
+                    .value_shape_known = false,
+                    .takes_value = false,
+                    .value_required = false,
+                    .provenance = acclorite::SyntaxProvenance{
+                        .source_kind = acclorite::SyntaxSourceKind::Completion,
+                        .source_reference = "fish:/tmp/tool.fish",
+                        .section = "complete",
+                    },
+                },
+            },
+            .subcommands = {acclorite::SubcommandSpec{
+                .name = "run",
+                .description = "Completion run description.",
+                .options = {acclorite::CommandOption{
+                    .names = {"--export"},
+                    .description = "Export output.",
+                    .value_name = "VALUE",
+                    .value_shape_known = true,
+                    .takes_value = true,
+                    .value_required = true,
+                    .provenance = acclorite::SyntaxProvenance{
+                        .source_kind = acclorite::SyntaxSourceKind::Completion,
+                        .source_reference = "fish:/tmp/tool.fish",
+                        .section = "complete / __fish_seen_subcommand_from",
+                    },
+                }},
+                .positionals = {},
+                .provenance = acclorite::SyntaxProvenance{
+                    .source_kind = acclorite::SyntaxSourceKind::Completion,
+                    .source_reference = "fish:/tmp/tool.fish",
+                    .section = "complete / __fish_use_subcommand",
+                },
+                .synopsis = {},
+            }},
+        };
+
+        acclorite::merge_command_grammar(primary, secondary);
+        expect(primary.global_options.size() == 2,
+               "grammar merge adds non-overlapping lower-priority global syntax");
+        const auto output = std::ranges::find_if(primary.global_options, [](const acclorite::CommandOption& option) {
+            return std::ranges::find(option.names, "--output") != option.names.end();
+        });
+        expect(output != primary.global_options.end() && output->value_shape_known && output->takes_value &&
+                   output->provenance.source_kind == acclorite::SyntaxSourceKind::Man,
+               "grammar merge never lets weaker duplicate completion evidence degrade authoritative man shape");
+        expect(primary.subcommands.size() == 1 &&
+                   primary.subcommands.front().provenance.source_kind == acclorite::SyntaxSourceKind::Man &&
+                   primary.subcommands.front().options.size() == 1 &&
+                   primary.subcommands.front().options.front().provenance.source_kind ==
+                       acclorite::SyntaxSourceKind::Completion,
+               "merged subcommand keeps parent authority while retaining per-option completion provenance");
+    }
+
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-syntax-merge-test";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+    const auto executed_marker = temp / "target-executed";
+
+    write_man_pages_fixture(temp, {
+        {
+            "guide-tool",
+            "GUIDE-TOOL(1)\n"
+            "NAME\n"
+            "    guide-tool - fixture\n"
+            "COMMANDS\n"
+            "    guide-tool-switch(1)\n"
+            "        Switch branches in the working tree.\n"
+        },
+    });
+    {
+        std::ofstream fish(temp / "guide-tool.fish");
+        fish << "complete -c guide-tool -n '__fish_seen_subcommand_from switch' "
+                "-l create -r -d 'Create a new branch before switching to it.'\n";
+    }
+    write_executable(temp / "guide-tool", "#!/bin/sh\ntouch '" + executed_marker.string() + "'\nexit 91\n");
+
+    {
+        ScopedPath scoped_path(temp);
+        const acclorite::Candidate candidate{
+            .command = "guide-tool",
+            .summary = "fixture",
+            .source = "test+man",
+            .installed = true,
+            .cli_capable = true,
+        };
+        acclorite::ManCommandSyntaxProvider man_provider;
+        acclorite::FishCompletionSyntaxProvider fish_provider({temp});
+        const auto man_root = man_provider.grammar(candidate);
+        expect(man_root.has_value() && man_root->subcommands.size() == 1 &&
+                   man_root->subcommands.front().name == "switch",
+               "man root independently proves the child identity used by merged syntax");
+        expect(!fish_provider.grammar(candidate).has_value(),
+               "a scoped Fish condition still cannot invent a root subcommand by itself");
+        if (man_root && !man_root->subcommands.empty()) {
+            const auto fish_child = fish_provider.subcommand_grammar(candidate, man_root->subcommands.front());
+            expect(fish_child.has_value() && fish_child->options.size() == 1 &&
+                       std::ranges::find(fish_child->options.front().names, "--create") !=
+                           fish_child->options.front().names.end(),
+                   "Fish may enrich a child identity already proven by another trusted provider");
+        }
+
+        acclorite::SearchEngine engine;
+        engine.add_source(std::make_unique<GuidanceIntegrationSource>());
+        engine.add_syntax_provider(std::make_unique<acclorite::ManCommandSyntaxProvider>());
+        engine.add_syntax_provider(std::make_unique<acclorite::FishCompletionSyntaxProvider>(
+            std::vector<std::filesystem::path>{temp}
+        ));
+
+        const auto result = engine.search(
+            acclorite::Query::parse(
+                "guide-tool make a fresh branch called feature/foo and put me on it"
+            ),
+            10,
+            false,
+            true
+        );
+        expect(result.actionable_answer.has_value(),
+               "SearchEngine composes one answer from complementary syntax providers");
+        if (result.actionable_answer) {
+            const auto& answer = *result.actionable_answer;
+            expect(answer.relevant_subcommands.size() == 1 &&
+                       answer.relevant_subcommands.front().name == "switch" &&
+                       answer.relevant_subcommands.front().provenance.source_kind ==
+                           acclorite::SyntaxSourceKind::Man,
+                   "merged answer preserves the man-proven parent subcommand provenance");
+            expect(answer.relevant_options.size() == 1 &&
+                       answer.relevant_options.front().provenance.source_kind ==
+                           acclorite::SyntaxSourceKind::Completion,
+                   "merged answer preserves completion provenance on the scoped option fact");
+            expect(answer.invocation.has_value() && answer.invocation->arguments.size() == 3 &&
+                       answer.invocation->arguments[0].value == "switch" &&
+                       answer.invocation->arguments[1].value == "--create" &&
+                       answer.invocation->arguments[2].value == "feature/foo" &&
+                       !answer.invocation->complete,
+                   "cross-provider child grammar binds a verified scoped template without overstating completeness");
+        }
+        expect(std::ranges::any_of(result.timing.stages, [](const acclorite::TimingStage& stage) {
+            return stage.name == "syntax:man";
+        }) && std::ranges::any_of(result.timing.stages, [](const acclorite::TimingStage& stage) {
+            return stage.name == "syntax:fish-completion-child";
+        }), "profiling keeps each provider's root/child syntax cost independently visible after merging");
+    }
+
+    expect(!std::filesystem::exists(executed_marker),
+           "cross-provider grammar merging never executes the target command");
+    std::filesystem::remove_all(temp);
+}
+
+void test_parent_proven_child_man_grammar_resolves_compound_operation_without_executing_targets() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-child-man-syntax-test";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+    const auto executed_marker = temp / "target-executed";
+
+    write_man_pages_fixture(temp, {
+        {
+            "guide-tool",
+            "GUIDE-TOOL(1)\n"
+            "NAME\n"
+            "    guide-tool - fixture\n"
+            "COMMANDS\n"
+            "    guide-tool-branch(1)\n"
+            "        List, create, or delete branches.\n"
+            "    guide-tool-switch(1)\n"
+            "        Switch branches in the working tree.\n"
+        },
+        {
+            "guide-tool-branch",
+            "GUIDE-TOOL-BRANCH(1)\n"
+            "NAME\n"
+            "    guide-tool-branch - manage branches\n"
+            "OPTIONS\n"
+            "    -c, --copy <new-branch>\n"
+            "        Copy a branch and its reflog.\n"
+        },
+        {
+            "guide-tool-switch",
+            "GUIDE-TOOL-SWITCH(1)\n"
+            "NAME\n"
+            "    guide-tool-switch - switch branches\n"
+            "SYNOPSIS\n"
+            "    guide-tool switch [<options>] [<branch>]\n"
+            "    guide-tool switch [<options>] (-c|-C) <new-branch> [<start-point>]\n"
+            "    guide-tool switch [<options>] --detach [<start-point>]\n"
+            "OPTIONS\n"
+            "    -c <new-branch>, --create <new-branch>\n"
+            "        Create a new branch before switching to the branch.\n"
+            "    -C <new-branch>, --force-create <new-branch>\n"
+            "        Similar to --create except that an existing branch is reset before switching.\n"
+        },
+    });
+    write_executable(temp / "guide-tool", "#!/bin/sh\ntouch '" + executed_marker.string() + "'\nexit 91\n");
+    write_executable(temp / "guide-tool-branch", "#!/bin/sh\ntouch '" + executed_marker.string() + "'\nexit 92\n");
+    write_executable(temp / "guide-tool-switch", "#!/bin/sh\ntouch '" + executed_marker.string() + "'\nexit 93\n");
+
+    {
+        ScopedPath scoped_path(temp);
+        acclorite::SearchEngine engine;
+        engine.add_source(std::make_unique<GuidanceIntegrationSource>());
+        engine.add_syntax_provider(std::make_unique<acclorite::ManCommandSyntaxProvider>());
+
+        const auto query = acclorite::Query::parse(
+            "guide-tool make a fresh branch called feature/foo and put me on it"
+        );
+        const auto result = engine.search(query, 10, false, true);
+        expect(result.action_target.has_value() &&
+                   result.action_target->kind == acclorite::ActionTargetKind::Operation &&
+                   std::ranges::find(result.action_target->terms, "create") != result.action_target->terms.end() &&
+                   std::ranges::find(result.action_target->terms, "branch") != result.action_target->terms.end() &&
+                   std::ranges::find(result.action_target->terms, "switch") != result.action_target->terms.end(),
+               "compound branch request preserves create + branch + switch operation evidence");
+        expect(result.actionable_answer.has_value(),
+               "parent-proven child man grammar can answer a compound operation");
+        if (result.actionable_answer) {
+            const auto& answer = *result.actionable_answer;
+            expect(answer.relevant_subcommands.size() == 1 &&
+                       answer.relevant_subcommands.front().name == "switch",
+                   "deeper grammar selects switch rather than shallow branch management");
+            expect(answer.relevant_options.size() == 1 &&
+                       std::ranges::find(answer.relevant_options.front().names, "--create") !=
+                           answer.relevant_options.front().names.end(),
+                   "child manual proves the create option inside the selected subcommand");
+            expect(answer.relevant_options.front().provenance.source_reference == "man:guide-tool-switch",
+                   "nested option provenance points at the child manual that proved it");
+            expect(answer.invocation.has_value(),
+                   "child option value can bind the user branch name into structured argv");
+            if (answer.invocation) {
+                const auto& invocation = *answer.invocation;
+                expect(invocation.complete && invocation.command == "guide-tool" &&
+                           invocation.arguments.size() == 3 &&
+                           invocation.arguments[0].value == "switch" &&
+                           invocation.arguments[1].value == "--create" &&
+                           invocation.arguments[2].value == "feature/foo",
+                       "selected child synopsis alternative proves the complete create-and-switch invocation");
+            }
+        }
+
+        const auto alternate_phrase = engine.search(acclorite::Query::parse(
+            "guide-tool make a new branch called release/test and go there"
+        ));
+        expect(alternate_phrase.actionable_answer.has_value() &&
+                   alternate_phrase.actionable_answer->invocation.has_value(),
+               "alternate create-and-go-there phrasing still binds exactly one branch literal");
+        if (alternate_phrase.actionable_answer && alternate_phrase.actionable_answer->invocation) {
+            const auto& invocation = *alternate_phrase.actionable_answer->invocation;
+            expect(invocation.complete && invocation.arguments.size() == 3 &&
+                       invocation.arguments[0].value == "switch" &&
+                       invocation.arguments[1].value == "--create" &&
+                       invocation.arguments[2].value == "release/test",
+                   "operation paraphrases are consumed as structure instead of extra bindable literals");
+        }
+
+        expect(std::ranges::any_of(result.timing.stages, [](const acclorite::TimingStage& stage) {
+            return stage.name == "syntax:man-child";
+        }), "profiling exposes child-man grammar acquisition separately");
+
+        std::ostringstream terminal;
+        acclorite::TerminalRenderer{}.render(result, terminal);
+        expect(terminal.str().find("Verified command") != std::string::npos &&
+                   terminal.str().find("guide-tool switch --create feature/foo") != std::string::npos &&
+                   terminal.str().find("man:guide-tool-switch") != std::string::npos,
+               "terminal renders nested verified syntax and child-man provenance");
+
+        const auto create_only = engine.search(acclorite::Query::parse(
+            "guide-tool make a fresh branch called feature/only"
+        ));
+        expect(create_only.actionable_answer.has_value() &&
+                   create_only.actionable_answer->relevant_subcommands.size() == 1 &&
+                   create_only.actionable_answer->relevant_subcommands.front().name == "branch" &&
+                   create_only.actionable_answer->relevant_options.empty(),
+               "child grammar never adds switch semantics when root branch grammar already satisfies create-only intent");
+    }
+
+    expect(!std::filesystem::exists(executed_marker),
+           "child-man enrichment never executes parent or child target commands");
+    std::filesystem::remove_all(temp);
+}
+
+void test_explicit_option_answer_is_verified_post_ranking_and_machine_visible() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-actionable-option-test";
+    std::filesystem::remove_all(temp);
+    std::filesystem::create_directories(temp);
+    const auto executed_marker = temp / "guide-tool-executed";
+
+    write_man_page_fixture(
+        temp,
+        "GUIDE-TOOL(1)\n"
+        "NAME\n"
+        "    guide-tool - fixture\n"
+        "SYNOPSIS\n"
+        "    guide-tool [OPTIONS] <input>\n"
+        "OPTIONS\n"
+        "    -o, --output <path>\n"
+        "        Write the result to the selected path.\n"
+        "    --quiet\n"
+        "        Suppress normal output.\n"
+        "    -l, --lower-case\n"
+        "        Lowercase fixture option.\n"
+        "    -L, --upper-case\n"
+        "        Uppercase fixture option.\n"
+        "    -R, --location\n"
+        "        Follow HTTP redirects to the new location.\n"
+        "        --user may appear here as referenced prose without becoming a declaration.\n"
+        "    --max-redirs <count>\n"
+        "        Limit the number of redirects that may be followed.\n"
+        "    -., --hidden\n"
+        "        Search hidden files and directories.\n"
+        "    --seek <position>\n"
+        "        Seek input to the requested position.\n"
+        "COMMANDS\n"
+        "    status [UNIT...|PID...]]\n"
+        "        Show runtime status information for a unit.\n"
+        "    guide-tool-branch(1)\n"
+        "        List, create, or delete branches.\n"
+        "    guide-tool-switch(1)\n"
+        "        Switch branches in the working tree.\n"
+    );
+    write_executable(temp / "guide-tool", "#!/bin/sh\ntouch '" + executed_marker.string() + "'\nexit 92\n");
+
+    const auto query = acclorite::Query::parse("what does guide-tool --output do");
+
+    acclorite::SearchEngine baseline;
+    baseline.add_source(std::make_unique<GuidanceIntegrationSource>());
+    const auto without_syntax = baseline.search(query, 10, false, true);
+
+    {
+        ScopedPath scoped_path(temp);
+        acclorite::SearchEngine actionable;
+        actionable.add_source(std::make_unique<GuidanceIntegrationSource>());
+        actionable.add_syntax_provider(std::make_unique<acclorite::ManCommandSyntaxProvider>());
+        const auto result = actionable.search(query, 10, false, true);
+
+        expect(result.candidates.size() == without_syntax.candidates.size(),
+               "syntax enrichment does not change candidate count");
+        if (result.candidates.size() == without_syntax.candidates.size()) {
+            for (std::size_t i = 0; i < result.candidates.size(); ++i) {
+                expect(result.candidates[i].command == without_syntax.candidates[i].command,
+                       "syntax enrichment does not change ranking order");
+                expect(std::abs(result.candidates[i].score - without_syntax.candidates[i].score) < 0.000001,
+                       "syntax enrichment does not change ranking score");
+            }
+        }
+
+        expect(result.actionable_answer.has_value(),
+               "explicit locally verified option produces an actionable answer");
+        if (result.actionable_answer) {
+            expect(result.actionable_answer->command == "guide-tool",
+                   "actionable answer is attached to the selected candidate, not ranking data");
+            expect(!result.actionable_answer->invocation.has_value(),
+                   "Explain-only option inspection does not manufacture an execution-shaped invocation");
+            expect(result.actionable_answer->relevant_options.size() == 1,
+                   "option question returns the relevant verified option instead of dumping all flags");
+            if (!result.actionable_answer->relevant_options.empty()) {
+                const auto& option = result.actionable_answer->relevant_options.front();
+                expect(!option.names.empty() && option.names.front() == "--output",
+                       "answer composer preserves the exact option spelling requested by the user");
+                expect(option.value_name == "path" && option.value_required,
+                       "actionable answer preserves verified argument shape");
+            }
+            expect(result.actionable_answer->safety == acclorite::ActionSafety::Unknown,
+                   "initial syntax slice exposes honest Unknown safety rather than guessing");
+        }
+
+        expect(std::ranges::any_of(result.timing.stages, [](const acclorite::TimingStage& stage) {
+            return stage.name == "syntax:man";
+        }), "performance profile exposes syntax-provider cost independently of ranking");
+        expect(std::ranges::any_of(result.timing.stages, [](const acclorite::TimingStage& stage) {
+            return stage.name == "answer-compose";
+        }), "performance profile exposes deterministic answer composition cost");
+
+        std::ostringstream terminal;
+        acclorite::TerminalRenderer{}.render(result, terminal);
+        expect(terminal.str().find("Verified syntax") != std::string::npos &&
+                   terminal.str().find("guide-tool --output <path>") != std::string::npos,
+               "terminal renders a source-backed syntax template for explicit option questions");
+        expect(terminal.str().find("man:guide-tool") != std::string::npos &&
+                   terminal.str().find("OPTIONS") != std::string::npos,
+               "terminal renders option provenance next to the verified syntax");
+
+        std::ostringstream json;
+        acclorite::JsonRenderer{}.render(result, json);
+        expect(json.str().find("\"actionable_answer\": {") != std::string::npos &&
+                   json.str().find("\"command\": \"guide-tool\"") != std::string::npos,
+               "search JSON exposes additive actionable-answer structure");
+        expect(json.str().find("\"source_type\": \"man\"") != std::string::npos &&
+                   json.str().find("\"value_name\": \"path\"") != std::string::npos,
+               "machine output exposes syntax provenance and argument metadata without scraping prose");
+
+        const auto uppercase_option = actionable.search(
+            acclorite::Query::parse("what does guide-tool -L do")
+        );
+        expect(uppercase_option.actionable_answer.has_value(),
+               "explicit option matching preserves case-sensitive short-option identity");
+        if (uppercase_option.actionable_answer &&
+            !uppercase_option.actionable_answer->relevant_options.empty()) {
+            const auto& option = uppercase_option.actionable_answer->relevant_options.front();
+            expect(!option.names.empty() && option.names.front() == "-L",
+                   "uppercase short option is not normalized into the distinct lowercase option");
+            expect(option.description.find("Uppercase fixture option") != std::string::npos,
+                   "case-sensitive short option selects the matching documented semantics");
+        }
+
+        const auto lowercase_option = actionable.search(
+            acclorite::Query::parse("what does guide-tool -l do")
+        );
+        expect(lowercase_option.actionable_answer.has_value(),
+               "lowercase short option remains independently addressable");
+        if (lowercase_option.actionable_answer &&
+            !lowercase_option.actionable_answer->relevant_options.empty()) {
+            expect(lowercase_option.actionable_answer->relevant_options.front().names.front() == "-l",
+                   "lowercase short option does not alias to uppercase spelling");
+        }
+
+        const auto punctuation_option = actionable.search(
+            acclorite::Query::parse("what does guide-tool -. do")
+        );
+        expect(punctuation_option.actionable_answer.has_value(),
+               "punctuation-valued short option remains explicitly addressable end to end");
+        if (punctuation_option.actionable_answer &&
+            !punctuation_option.actionable_answer->relevant_options.empty()) {
+            expect(punctuation_option.actionable_answer->relevant_options.front().names.front() == "-.",
+                   "explicit punctuation short option preserves exact requested spelling");
+        }
+
+        const auto semantic_redirect = actionable.search(
+            acclorite::Query::parse("what flag makes guide-tool follow redirects"), 10, false, true
+        );
+        expect(semantic_redirect.actionable_answer.has_value(),
+               "natural-language capability question selects a locally verified option");
+        expect(semantic_redirect.targets.size() == 1 && semantic_redirect.targets.front() == "guide-tool",
+               "syntax-target parent command is exposed as the resolved entity target");
+        expect(semantic_redirect.action_target.has_value() &&
+                   semantic_redirect.action_target->kind == acclorite::ActionTargetKind::Option &&
+                   !semantic_redirect.action_target->explicit_syntax,
+               "search result carries structured semantic option intent separately from ranking targets");
+        if (semantic_redirect.actionable_answer &&
+            !semantic_redirect.actionable_answer->relevant_options.empty()) {
+            const auto& option = semantic_redirect.actionable_answer->relevant_options.front();
+            expect(std::ranges::find(option.names, "--location") != option.names.end(),
+                   "capability matching selects redirect-following option rather than another redirect-related flag");
+            expect(std::ranges::find(option.names, "--max-redirs") == option.names.end(),
+                   "semantic option matching does not confuse capability with an adjacent related option");
+        }
+
+        const auto semantic_hidden = actionable.search(
+            acclorite::Query::parse("which guide-tool flag includes hidden files")
+        );
+        expect(semantic_hidden.actionable_answer.has_value(),
+               "semantic flag query can resolve a capability from option name plus documented description");
+        if (semantic_hidden.actionable_answer && !semantic_hidden.actionable_answer->relevant_options.empty()) {
+            const auto& names = semantic_hidden.actionable_answer->relevant_options.front().names;
+            expect(std::ranges::find(names, "--hidden") != names.end(),
+                   "hidden-files capability resolves to the verified hidden option");
+            expect(!names.empty() && names.front() == "--hidden",
+                   "semantic option answers prefer a readable long alias over an obscure short spelling");
+        }
+
+        const auto semantic_subcommand = actionable.search(
+            acclorite::Query::parse("which guide-tool subcommand creates a branch")
+        );
+        expect(semantic_subcommand.actionable_answer.has_value(),
+               "semantic subcommand query selects locally verified man subcommand grammar");
+        if (semantic_subcommand.actionable_answer &&
+            !semantic_subcommand.actionable_answer->relevant_subcommands.empty()) {
+            const auto& subcommand = semantic_subcommand.actionable_answer->relevant_subcommands.front();
+            expect(subcommand.name == "branch",
+                   "subcommand capability matching selects branch from verified description and identity");
+            expect(subcommand.provenance.source_kind == acclorite::SyntaxSourceKind::Man &&
+                       subcommand.provenance.section == "COMMANDS",
+                   "semantic subcommand answer retains exact syntax provenance");
+        }
+        std::ostringstream subcommand_terminal;
+        acclorite::TerminalRenderer{}.render(semantic_subcommand, subcommand_terminal);
+        expect(subcommand_terminal.str().find("guide-tool branch") != std::string::npos &&
+                   subcommand_terminal.str().find("man:guide-tool") != std::string::npos,
+               "terminal renders verified subcommand identity and provenance without pretending to bind arguments");
+
+        const auto implicit_redirect = actionable.search(acclorite::Query::parse(
+            "guide-tool keeps getting 3xx responses and stopping, make it follow the redirect"
+        ));
+        expect(implicit_redirect.actionable_answer.has_value() &&
+                   implicit_redirect.action_target.has_value() &&
+                   implicit_redirect.action_target->kind == acclorite::ActionTargetKind::Option,
+               "verified grammar resolves an implicit operation into an option target");
+        if (implicit_redirect.actionable_answer &&
+            !implicit_redirect.actionable_answer->relevant_options.empty()) {
+            expect(std::ranges::find(
+                       implicit_redirect.actionable_answer->relevant_options.front().names,
+                       "--location"
+                   ) != implicit_redirect.actionable_answer->relevant_options.front().names.end(),
+                   "implicit redirect operation resolves to verified redirect-following option");
+        }
+
+        const auto implicit_hidden = actionable.search(acclorite::Query::parse(
+            "guide-tool is skipping dotfiles, make it search them too"
+        ));
+        expect(implicit_hidden.actionable_answer.has_value() &&
+                   implicit_hidden.action_target.has_value() &&
+                   implicit_hidden.action_target->kind == acclorite::ActionTargetKind::Option,
+               "hidden-file complaint resolves operation into verified option syntax");
+
+        const auto implicit_status = actionable.search(acclorite::Query::parse(
+            "guide-tool show me what nginx is doing"
+        ));
+        expect(implicit_status.actionable_answer.has_value() &&
+                   implicit_status.action_target.has_value() &&
+                   implicit_status.action_target->kind == acclorite::ActionTargetKind::Subcommand,
+               "human status request resolves operation into verified subcommand syntax");
+        if (implicit_status.actionable_answer &&
+            !implicit_status.actionable_answer->relevant_subcommands.empty()) {
+            expect(implicit_status.actionable_answer->relevant_subcommands.front().name == "status",
+                   "implicit status request selects verified status subcommand");
+            expect(implicit_status.actionable_answer->invocation.has_value(),
+                   "verified optional subcommand positional can bind a user-provided unit name");
+            if (implicit_status.actionable_answer->invocation) {
+                const auto& invocation = *implicit_status.actionable_answer->invocation;
+                expect(invocation.complete && invocation.arguments.size() == 2 &&
+                           invocation.arguments[0].value == "status" &&
+                           invocation.arguments[1].value == "nginx" &&
+                           !invocation.arguments[1].placeholder,
+                       "argument binder constructs a complete structured system-status-shaped invocation");
+            }
+        }
+
+        std::ostringstream implicit_status_terminal;
+        acclorite::TerminalRenderer{}.render(implicit_status, implicit_status_terminal);
+        expect(implicit_status_terminal.str().find("guide-tool status nginx") != std::string::npos,
+               "terminal renders the complete bound invocation through the shell renderer");
+
+        const auto implicit_seek = actionable.search(acclorite::Query::parse(
+            "guide-tool start reading this video from 30 seconds in"
+        ));
+        expect(implicit_seek.actionable_answer.has_value() &&
+                   implicit_seek.actionable_answer->invocation.has_value(),
+               "required option value binding produces a structured partial invocation");
+        if (implicit_seek.actionable_answer && implicit_seek.actionable_answer->invocation) {
+            const auto& invocation = *implicit_seek.actionable_answer->invocation;
+            expect(!invocation.complete && invocation.arguments.size() == 2 &&
+                       invocation.arguments[0].value == "--seek" &&
+                       invocation.arguments[1].value == "30" &&
+                       !invocation.arguments[1].placeholder,
+                   "binder preserves the user-supplied option value without claiming root-command completeness");
+        }
+
+        std::ostringstream semantic_json;
+        acclorite::JsonRenderer{}.render(semantic_redirect, semantic_json);
+        expect(semantic_json.str().find("\"action_target\": {") != std::string::npos &&
+                   semantic_json.str().find("\"kind\": \"option\"") != std::string::npos &&
+                   semantic_json.str().find("\"follow\"") != std::string::npos,
+               "machine output exposes structured action target and capability terms additively");
+
+        const auto unsupported = actionable.search(
+            acclorite::Query::parse("what does guide-tool --absolutely-made-up do")
+        );
+        expect(!unsupported.actionable_answer.has_value(),
+               "unsupported explicit flags are rejected instead of hallucinated from nearby documentation");
+    }
+
+    expect(!std::filesystem::exists(executed_marker),
+           "end-to-end actionable answer path never executes the selected command");
+    std::filesystem::remove_all(temp);
+}
+
+void test_child_synopsis_completeness_requires_explicit_compatible_path() {
+    auto query = acclorite::Query::parse("tool make a new branch called feature/foo and switch");
+    query.action_target = acclorite::ActionTarget{
+        .kind = acclorite::ActionTargetKind::Operation,
+        .command = std::string("tool"),
+        .literal = std::nullopt,
+        .terms = {"create", "branch", "switch"},
+        .explicit_syntax = false,
+    };
+
+    const acclorite::CommandGrammar grammar{.command = "tool"};
+    const acclorite::CommandOption create{
+        .names = {"--create", "-c"},
+        .description = "Create a new branch before switching.",
+        .value_name = std::string("new-branch"),
+        .takes_value = true,
+        .value_required = true,
+    };
+
+    acclorite::SubcommandSpec generic_only{
+        .name = "switch",
+        .synopsis = {
+            acclorite::SynopsisAlternative{.text = "tool switch [<options>] [<branch>]"},
+        },
+    };
+    const auto generic = acclorite::ArgumentBinder::bind_subcommand_option(
+        query, grammar, generic_only, create
+    );
+    expect(generic.has_value() && !generic->complete,
+           "generic <options> synopsis allowance does not prove one selected option path complete");
+
+    acclorite::SubcommandSpec unmet_required{
+        .name = "switch",
+        .synopsis = {
+            acclorite::SynopsisAlternative{
+                .text = "tool switch [<options>] (-c|-C) <new-branch> <required-extra>"
+            },
+        },
+    };
+    const auto unmet = acclorite::ArgumentBinder::bind_subcommand_option(
+        query, grammar, unmet_required, create
+    );
+    expect(unmet.has_value() && !unmet->complete,
+           "child synopsis with an additional unmet required slot remains an incomplete template");
+}
+
+void test_binder_only_consumes_operation_paraphrases_when_operation_proves_them() {
+    auto query = acclorite::Query::parse("tool write output to new");
+    query.action_target = acclorite::ActionTarget{
+        .kind = acclorite::ActionTargetKind::Operation,
+        .command = std::string("tool"),
+        .literal = std::nullopt,
+        .terms = {"write", "output"},
+        .explicit_syntax = false,
+    };
+
+    const acclorite::CommandGrammar grammar{.command = "tool"};
+    const acclorite::SubcommandSpec subcommand{.name = "emit"};
+    const acclorite::CommandOption option{
+        .names = {"--output"},
+        .description = "Write output to a selected name.",
+        .value_name = std::string("name"),
+        .takes_value = true,
+        .value_required = true,
+    };
+
+    const auto invocation = acclorite::ArgumentBinder::bind_subcommand_option(
+        query, grammar, subcommand, option
+    );
+    expect(invocation.has_value() && invocation->arguments.size() == 3 &&
+               invocation->arguments[2].value == "new",
+           "generic literal 'new' remains bindable outside create-branch operation recovery");
+}
+
+void test_hidden_files_paraphrase_is_not_rebound_as_root_search_data() {
+    auto query = acclorite::Query::parse("rg is skipping dotfiles, make it search them too");
+    query.frame = acclorite::query::recognize_frame(query);
+    query.action_target = acclorite::query::detect_action_target(query);
+
+    expect(query.action_target.has_value() &&
+               query.action_target->kind == acclorite::ActionTargetKind::Operation &&
+               std::ranges::find(query.action_target->terms, "hidden") != query.action_target->terms.end() &&
+               std::ranges::find(query.action_target->terms, "files") != query.action_target->terms.end(),
+           "dotfiles wording still recovers the hidden-files option target");
+
+    const acclorite::CommandOption hidden{
+        .names = {"--hidden", "-."},
+        .description = "Search hidden files and directories.",
+        .value_shape_known = true,
+        .takes_value = false,
+        .value_required = false,
+        .provenance = acclorite::SyntaxProvenance{
+            .source_kind = acclorite::SyntaxSourceKind::Man,
+            .source_reference = "man:rg",
+            .section = "OPTIONS",
+        },
+    };
+    const acclorite::CommandGrammar grammar{
+        .command = "rg",
+        .global_options = {hidden},
+        .synopsis = {acclorite::SynopsisAlternative{
+            .text = "rg [OPTIONS] PATTERN [PATH...]",
+            .provenance = acclorite::SyntaxProvenance{
+                .source_kind = acclorite::SyntaxSourceKind::Man,
+                .source_reference = "man:rg",
+                .section = "SYNOPSIS",
+            },
+        }},
+    };
+
+    const auto invocation = acclorite::ArgumentBinder::bind_root_option(query, grammar, hidden);
+    expect(!invocation.has_value(),
+           "hidden-files paraphrase words are never rebound as rg PATTERN/PATH literals");
+
+    auto literal_query = acclorite::Query::parse("tool compare dotfiles to skipping");
+    literal_query.action_target = acclorite::ActionTarget{
+        .kind = acclorite::ActionTargetKind::Operation,
+        .command = std::string("tool"),
+        .literal = std::nullopt,
+        .terms = {"compare"},
+        .explicit_syntax = false,
+    };
+    const acclorite::CommandGrammar literal_grammar{
+        .command = "tool",
+        .synopsis = {acclorite::SynopsisAlternative{
+            .text = "tool LEFT RIGHT",
+            .provenance = acclorite::SyntaxProvenance{
+                .source_kind = acclorite::SyntaxSourceKind::Man,
+                .source_reference = "man:tool",
+                .section = "SYNOPSIS",
+            },
+        }},
+    };
+    const auto literal_invocation = acclorite::ArgumentBinder::bind_root(literal_query, literal_grammar);
+    expect(literal_invocation.has_value() && literal_invocation->arguments.size() == 2 &&
+               literal_invocation->arguments[0].value == "dotfiles" &&
+               literal_invocation->arguments[1].value == "skipping",
+           "dotfiles/skipping remain ordinary bindable data outside hidden-files intent");
+}
+
+void test_safety_classifier_requires_complete_source_backed_alignment() {
+    const auto classify = [](
+        std::vector<std::string> terms,
+        std::string summary,
+        std::vector<std::string> arguments,
+        const bool complete = true,
+        std::vector<acclorite::CommandOption> options = {},
+        std::vector<acclorite::SubcommandSpec> subcommands = {}
+    ) {
+        acclorite::Query query = acclorite::Query::parse("fixture");
+        query.action_target = acclorite::ActionTarget{
+            .kind = acclorite::ActionTargetKind::Operation,
+            .command = std::string("tool"),
+            .literal = std::nullopt,
+            .terms = std::move(terms),
+            .explicit_syntax = false,
+        };
+        acclorite::Candidate candidate;
+        candidate.command = "tool";
+        candidate.summary = std::move(summary);
+
+        acclorite::ActionableAnswer answer;
+        answer.command = "tool";
+        answer.invocation = acclorite::CommandInvocation{
+            .command = "tool",
+            .complete = complete,
+        };
+        for (auto& argument : arguments) {
+            answer.invocation->arguments.push_back(acclorite::InvocationArgument{
+                .value = std::move(argument),
+                .placeholder = false,
+            });
+        }
+        answer.relevant_options = std::move(options);
+        answer.relevant_subcommands = std::move(subcommands);
+        return acclorite::SafetyClassifier::classify(query, candidate, answer);
+    };
+
+    expect(classify({"remove", "delete"}, "remove files and directories", {"victim"}) ==
+               acclorite::ActionSafety::Destructive,
+           "safety classifier labels destructive actions only when requested intent and source semantics agree");
+    expect(classify({"copy"}, "copy files and directories", {"source", "dest"}) ==
+               acclorite::ActionSafety::Mutating,
+           "copy operation is source-backed mutating behavior");
+    expect(classify({"search"}, "print lines that match patterns", {"TODO", "notes.txt"}) ==
+               acclorite::ActionSafety::ReadOnly,
+           "search operation is source-backed read-only behavior");
+    expect(classify({"download"}, "transfer data from or to a server", {"https://example.com"}) ==
+               acclorite::ActionSafety::Network,
+           "network classification requires both network semantics and a concrete network request signal");
+    expect(classify({"change"}, "change system state; requires root privileges", {"setting"}) ==
+               acclorite::ActionSafety::Privileged,
+           "explicit source wording can classify a complete action as privileged");
+    expect(classify({"remove", "delete"}, "remove files and directories", {"victim"}, false) ==
+               acclorite::ActionSafety::Unknown,
+           "incomplete command templates stay Unknown even when their partial semantics look destructive");
+    expect(classify({"search"}, "write matching records to the database", {"needle"}) ==
+               acclorite::ActionSafety::Unknown,
+           "conflicting requested and documented behavior stays Unknown instead of forcing a reassuring label");
+
+    const acclorite::CommandOption create_option{
+        .names = {"--create"},
+        .description = "Create a new branch before switching to it.",
+        .provenance = acclorite::SyntaxProvenance{
+            .source_kind = acclorite::SyntaxSourceKind::Man,
+            .source_reference = "man:tool-switch",
+            .section = "OPTIONS",
+        },
+    };
+    expect(classify({"create", "branch", "switch"}, "generic tool frontend", {"switch", "--create", "feature/x"},
+                    true, {create_option}) == acclorite::ActionSafety::Mutating,
+           "specific verified option semantics outrank an uninformative parent summary for safety classification");
+}
+
+void test_root_synopsis_binding_handles_practical_multiargument_commands() {
+    const auto provenance = acclorite::SyntaxProvenance{
+        .source_kind = acclorite::SyntaxSourceKind::Man,
+        .source_reference = "man:tool",
+        .section = "SYNOPSIS",
+    };
+
+    {
+        auto query = acclorite::Query::parse("tool rename ~/uncool-shit to ~/cool-shit");
+        query.action_target = acclorite::ActionTarget{
+            .kind = acclorite::ActionTargetKind::Operation,
+            .command = std::string("tool"),
+            .literal = std::nullopt,
+            .terms = {"rename", "move"},
+            .explicit_syntax = false,
+        };
+        const acclorite::CommandGrammar grammar{
+            .command = "tool",
+            .synopsis = {acclorite::SynopsisAlternative{
+                .text = "tool [OPTION]... SOURCE DEST",
+                .provenance = provenance,
+            }},
+        };
+        const auto invocation = acclorite::ArgumentBinder::bind_root(query, grammar);
+        expect(invocation.has_value() && invocation->complete && invocation->arguments.size() == 2 &&
+                   invocation->arguments[0].value == "~/uncool-shit" &&
+                   invocation->arguments[1].value == "~/cool-shit",
+               "root SYNOPSIS binder maps ordered SOURCE/DEST literals without inventing options");
+    }
+
+    {
+        auto query = acclorite::Query::parse("tool search TODO in ~/Realmheart");
+        query.action_target = acclorite::ActionTarget{
+            .kind = acclorite::ActionTargetKind::Operation,
+            .command = std::string("tool"),
+            .literal = std::nullopt,
+            .terms = {"search"},
+            .explicit_syntax = false,
+        };
+        const acclorite::CommandGrammar grammar{
+            .command = "tool",
+            .synopsis = {acclorite::SynopsisAlternative{
+                .text = "tool [OPTIONS] PATTERN [PATH...]",
+                .provenance = provenance,
+            }},
+        };
+        const auto invocation = acclorite::ArgumentBinder::bind_root(query, grammar);
+        expect(invocation.has_value() && invocation->complete && invocation->arguments.size() == 2 &&
+                   invocation->arguments[0].value == "TODO" &&
+                   invocation->arguments[1].value == "~/Realmheart",
+               "root binder preserves pattern/path order and consumes optional variadic path data");
+    }
+
+    {
+        auto query = acclorite::Query::parse("tool save https://example.com to 'My Report.html'");
+        query.action_target = acclorite::ActionTarget{
+            .kind = acclorite::ActionTargetKind::Operation,
+            .command = std::string("tool"),
+            .literal = std::nullopt,
+            .terms = {"output"},
+            .explicit_syntax = false,
+        };
+        const acclorite::CommandOption output{
+            .names = {"--output", "-o"},
+            .description = "Write output to a file.",
+            .value_name = std::string("file"),
+            .value_shape_known = true,
+            .takes_value = true,
+            .value_required = true,
+            .provenance = provenance,
+        };
+        const acclorite::CommandGrammar grammar{
+            .command = "tool",
+            .global_options = {output},
+            .synopsis = {acclorite::SynopsisAlternative{
+                .text = "tool [OPTIONS] <url>",
+                .provenance = provenance,
+            }},
+        };
+        const auto invocation = acclorite::ArgumentBinder::bind_root_option(query, grammar, output);
+        expect(invocation.has_value() && invocation->complete && invocation->arguments.size() == 3 &&
+                   invocation->arguments[0].value == "--output" &&
+                   invocation->arguments[1].value == "My Report.html" &&
+                   invocation->arguments[2].value == "https://example.com",
+               "global option value role selection composes destination output with independent root URL grammar");
+        if (invocation) {
+            expect(acclorite::output::render_shell_invocation(*invocation) ==
+                       "tool --output 'My Report.html' https://example.com",
+                   "multi-role root binding remains shell-safe for quoted destination values");
+        }
+    }
+
+    {
+        auto query = acclorite::Query::parse("rename ~/old to ~/new");
+        query.frame = acclorite::query::recognize_frame(query);
+        query.action_target = acclorite::query::detect_action_target(query);
+        expect(query.action_target.has_value() &&
+                   query.action_target->kind == acclorite::ActionTargetKind::Operation &&
+                   !query.action_target->command.has_value() &&
+                   std::ranges::find(query.action_target->terms, "rename") != query.action_target->terms.end(),
+               "strong modify intent with concrete values can remain command-agnostic until ranking selects the parent tool");
+
+        const acclorite::Candidate candidate{
+            .command = "mv",
+            .summary = "move or rename files",
+            .installed = true,
+            .cli_capable = true,
+        };
+        const acclorite::CommandGrammar grammar{
+            .command = "mv",
+            .synopsis = {acclorite::SynopsisAlternative{
+                .text = "mv [OPTION]... SOURCE DEST",
+                .provenance = acclorite::SyntaxProvenance{
+                    .source_kind = acclorite::SyntaxSourceKind::Man,
+                    .source_reference = "man:mv",
+                    .section = "SYNOPSIS",
+                },
+            }},
+        };
+        const auto answer = acclorite::AnswerComposer::compose(query, candidate, grammar, {});
+        expect(answer.has_value() && answer->invocation.has_value() && answer->invocation->complete &&
+                   answer->invocation->command == "mv" && answer->invocation->arguments.size() == 2,
+               "post-ranking composition can turn command-agnostic human intent into a proven root invocation");
+        expect(answer.has_value() && answer->safety == acclorite::ActionSafety::Mutating,
+               "composer attaches evidence-driven safety after constructing a complete verified invocation");
+    }
+}
+
+void test_shell_renderer_quotes_structured_invocations() {
+    const acclorite::CommandInvocation invocation{
+        .command = "tool",
+        .arguments = {
+            acclorite::InvocationArgument{.value = "status", .placeholder = false},
+            acclorite::InvocationArgument{.value = "unit with spaces", .placeholder = false},
+            acclorite::InvocationArgument{.value = "<VALUE>", .placeholder = true},
+        },
+        .complete = false,
+    };
+    expect(acclorite::output::render_shell_invocation(invocation) ==
+               "tool status 'unit with spaces' <VALUE>",
+           "shell renderer quotes literal whitespace while leaving verified placeholders visibly structural");
+    expect(acclorite::output::shell_quote("O'Brien") == "'O'\\''Brien'",
+           "shell renderer safely escapes embedded single quotes without evaluating input");
+    expect(acclorite::output::shell_quote("simple/path-1") == "simple/path-1",
+           "shell renderer leaves conservative shell-safe literals readable");
+    expect(acclorite::output::shell_quote("~/My Files/input.txt") == "~/'My Files/input.txt'",
+           "shell renderer quotes a spaced home-relative path without disabling tilde expansion");
+}
+
+void test_syntax_provider_is_not_touched_for_ordinary_discovery() {
+    int availability_calls = 0;
+    int grammar_calls = 0;
+
+    acclorite::SearchEngine engine;
+    engine.add_source(std::make_unique<GuidanceIntegrationSource>());
+    engine.add_syntax_provider(std::make_unique<CountingSyntaxProvider>(&availability_calls, &grammar_calls));
+    const auto result = engine.search(acclorite::Query::parse("search text"), 10, false, true);
+
+    expect(!result.candidates.empty(), "ordinary discovery fixture still returns candidates");
+    expect(!result.actionable_answer.has_value(), "ordinary discovery does not manufacture an actionable option answer");
+    expect(availability_calls == 0 && grammar_calls == 0,
+           "ordinary discovery bypasses syntax providers entirely on the benchmark hot path");
+    expect(std::ranges::none_of(result.timing.stages, [](const acclorite::TimingStage& stage) {
+        return stage.name.starts_with("syntax:") || stage.name == "answer-compose";
+    }), "ordinary discovery profiling has no hidden syntax-provider work");
+}
 
 void test_man_guidance_extracts_only_source_backed_examples() {
     const auto temp = std::filesystem::temp_directory_path() / "acclorite-man-guidance-test";
@@ -3706,8 +6410,9 @@ void test_info_guidance_is_verified_and_falls_back_after_man() {
         info_only_result.candidates.push_back(candidate);
         std::ostringstream info_only_terminal;
         acclorite::TerminalRenderer{}.render(info_only_result, info_only_terminal);
-        expect(info_only_terminal.str().find("None found in current local documentation.") != std::string::npos,
-               "terminal preserves explicit no-example messaging for Info-only guidance");
+        expect(info_only_terminal.str().find("No verified example found") == std::string::npos &&
+               info_only_terminal.str().find("Learn") != std::string::npos,
+               "terminal omits empty example sections while preserving verified learning resources");
 
         write_executable(temp / "info", "#!/bin/sh\nexit 0\n");
         candidate.learning_resources.clear();
@@ -3834,8 +6539,9 @@ void test_tldr_guidance_reads_exact_local_cache_without_spawning_client() {
         tldr_only_result.candidates.push_back(candidate);
         std::ostringstream tldr_only_terminal;
         acclorite::TerminalRenderer{}.render(tldr_only_result, tldr_only_terminal);
-        expect(tldr_only_terminal.str().find("None found in current local documentation.") != std::string::npos,
-               "terminal no-example message also covers verified local TLDR pages");
+        expect(tldr_only_terminal.str().find("No verified example found") == std::string::npos &&
+               tldr_only_terminal.str().find("Learn") != std::string::npos,
+               "terminal omits empty example sections for verified TLDR-only guidance");
     }
 
     std::filesystem::remove_all(temp);
@@ -4023,7 +6729,7 @@ void test_guidance_is_post_ranking_bounded_and_machine_visible() {
 
     std::ostringstream terminal;
     acclorite::TerminalRenderer{}.render(with_guidance, terminal);
-    expect(terminal.str().find("Verified example") != std::string::npos,
+    expect(terminal.str().find("Example") != std::string::npos,
            "terminal result exposes verified example block");
     expect(terminal.str().find("docs guide-tool") != std::string::npos,
            "terminal result exposes learning resource target");
@@ -4031,7 +6737,7 @@ void test_guidance_is_post_ranking_bounded_and_machine_visible() {
     std::ostringstream json;
     acclorite::JsonRenderer{}.render(with_guidance, json);
     expect(json.str().find("\"schema_version\": 15") != std::string::npos,
-           "guidance fields advance search JSON schema to 14");
+           "guidance fields remain visible in search JSON schema 15");
     expect(json.str().find("\"examples\"") != std::string::npos &&
            json.str().find("\"learning_resources\"") != std::string::npos,
            "JSON exposes UI-independent guidance collections");
@@ -4065,6 +6771,246 @@ void test_process_plural_is_canonical_not_broken_s_stem() {
         expect(process->quality >= 0.93,
                "process plural keeps canonical description quality");
     }
+}
+
+
+void test_terminal_ux_is_hierarchical_and_color_is_opt_in() {
+    acclorite::SearchResult result;
+    result.raw_query = "what is rg";
+    result.normalized_query = result.raw_query;
+    result.frame = acclorite::query::recognize_frame(acclorite::Query::parse(result.raw_query));
+    result.targets = {"rg"};
+    result.confidence = acclorite::Confidence{
+        .top_candidate = 0.98,
+        .interpretation = 0.95,
+        .separation = 1.0,
+        .semantic_gap = 1.0,
+        .utility_gap = 1.0,
+        .ambiguity = acclorite::AmbiguityState::Clear,
+        .signals = {},
+    };
+    acclorite::Candidate candidate{
+        .command = "rg",
+        .path = "/usr/bin/rg",
+        .summary = "search text recursively",
+        .source = "path+man",
+        .installed = true,
+        .cli_capable = true,
+        .matched_terms = {"search", "text"},
+        .score = 1.0,
+    };
+    candidate.examples.push_back(acclorite::UsageExample{
+        .text = "rg {{pattern}}",
+        .source_kind = acclorite::GuidanceSourceKind::Tldr,
+        .source_reference = "tldr:/cache/rg.md",
+        .verified = true,
+    });
+    candidate.learning_resources.push_back(acclorite::LearningResource{
+        .label = "Local manual",
+        .target = "man rg",
+        .source_kind = acclorite::GuidanceSourceKind::Man,
+        .source_reference = "man:rg",
+        .verified = true,
+    });
+    result.candidates.push_back(std::move(candidate));
+
+    std::ostringstream plain;
+    acclorite::TerminalRenderer{}.render(result, plain);
+    expect(plain.str().find("Explain · rg") != std::string::npos,
+           "terminal UX combines frame and target into a visible context heading");
+    expect(plain.str().find("✓ installed · /usr/bin/rg · CLI") != std::string::npos,
+           "terminal UX keeps installation, path, and interface on one compact row");
+    expect(plain.str().find("Package") == std::string::npos &&
+           plain.str().find("Matched") == std::string::npos &&
+           plain.str().find("Sources") == std::string::npos,
+           "normal terminal UX hides diagnostic metadata");
+    expect(plain.str().find("Template  rg {{pattern}} · tldr") != std::string::npos &&
+           plain.str().find("Learn") != std::string::npos &&
+           plain.str().find("Confidence") == std::string::npos,
+           "terminal UX keeps guidance compact and omits redundant clear confidence");
+    expect(plain.str().find("tldr:/cache/rg.md") == std::string::npos,
+           "normal terminal UX hides internal tldr cache paths");
+    expect(plain.str().find("\x1b[") == std::string::npos,
+           "default renderer output remains ANSI-free for tests and redirected output");
+
+    std::ostringstream colored;
+    acclorite::TerminalRenderer{true}.render(result, colored);
+    expect(colored.str().find("\x1b[") != std::string::npos,
+           "interactive renderer can add restrained ANSI styling");
+
+    acclorite::diagnostics::DoctorReport doctor;
+    doctor.checks.push_back(acclorite::diagnostics::DoctorCheck{
+        .id = "index",
+        .section = "Core",
+        .label = "Persistent index",
+        .state = acclorite::diagnostics::DoctorState::Ready,
+        .detail = "/tmp/index.db; fresh",
+        .hint = "",
+    });
+    std::ostringstream doctor_plain;
+    acclorite::DoctorTerminalRenderer{}.render(doctor, doctor_plain);
+    expect(doctor_plain.str().find("✓ healthy") != std::string::npos,
+           "Doctor UX leads with overall health");
+    expect(doctor_plain.str().find("1 checks · 1 ready") != std::string::npos,
+           "Doctor UX summarizes check counts before details");
+    expect(doctor_plain.str().find("Read-only diagnostic · no changes were made") != std::string::npos,
+           "Doctor UX makes read-only behavior obvious");
+    expect(doctor_plain.str().find("\x1b[") == std::string::npos,
+           "plain Doctor renderer stays ANSI-free");
+}
+
+
+class HintInspectionSource final : public acclorite::KnowledgeSource {
+public:
+    bool available() const override { return true; }
+    std::string_view diagnostic_name() const override { return "hint-test"; }
+
+    std::vector<acclorite::Candidate> search(const acclorite::Query&) const override {
+        return {acclorite::Candidate{
+            .command = "decoy",
+            .path = "/usr/bin/decoy",
+            .summary = "generic unrelated helper",
+            .source = "man",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.74,
+            .score = 0.74,
+        }};
+    }
+
+    std::vector<acclorite::Candidate> inspect_commands(
+        const acclorite::Query&,
+        std::span<const std::string> commands
+    ) const override {
+        std::vector<acclorite::Candidate> result;
+        if (std::find(commands.begin(), commands.end(), "right-tool") != commands.end()) {
+            result.push_back(acclorite::Candidate{
+                .command = "right-tool",
+                .path = "/usr/bin/right-tool",
+                .summary = "inspect process ancestry as a tree",
+                .source = "man",
+                .installed = true,
+                .cli_capable = true,
+                .semantic_fit = 0.90,
+                .score = 0.90,
+            });
+            // SearchEngine must reject inspection spillover that was never hinted.
+            result.push_back(acclorite::Candidate{
+                .command = "smuggled-tool",
+                .path = "/usr/bin/smuggled-tool",
+                .summary = "must not enter the candidate pool",
+                .source = "man",
+                .installed = true,
+                .cli_capable = true,
+                .semantic_fit = 0.99,
+                .score = 0.99,
+            });
+        }
+        return result;
+    }
+};
+
+void test_candidate_hints_only_expand_recall_through_source_inspection() {
+    acclorite::SearchEngine engine;
+    engine.add_source(std::make_unique<HintInspectionSource>());
+    const auto query = acclorite::Query::parse("show process ancestry as a tree");
+
+    const auto baseline = engine.search(query, 10);
+    expect(!baseline.candidates.empty() && baseline.candidates.front().command == "decoy",
+           "baseline search does not manufacture an unreturned hinted candidate");
+
+    const std::vector<acclorite::CandidateHint> hints{
+        {.command = "right-tool", .relevance_floor = 0.0},
+        {.command = "right-tool", .relevance_floor = 0.0},
+        {.command = "bad/hint", .relevance_floor = 0.0},
+    };
+    const auto hinted = engine.search(query, 10, false, false, hints);
+    expect(!hinted.candidates.empty() && hinted.candidates.front().command == "right-tool",
+           "source-substantiated candidate hint can expand recall before normal ranking");
+    const auto right = std::find_if(hinted.candidates.begin(), hinted.candidates.end(), [](const auto& candidate) {
+        return candidate.command == "right-tool";
+    });
+    expect(right != hinted.candidates.end() && right->source == "man",
+           "hint identity itself never becomes provenance or a semantic evidence source");
+    expect(std::none_of(hinted.candidates.begin(), hinted.candidates.end(), [](const auto& candidate) {
+        return candidate.command == "smuggled-tool";
+    }), "source inspection cannot inject candidates outside the bounded hint set");
+}
+
+
+class RankedHintInspectionSource final : public acclorite::KnowledgeSource {
+public:
+    bool available() const override { return true; }
+    std::string_view diagnostic_name() const override { return "ranked-hint-test"; }
+
+    std::vector<acclorite::Candidate> search(const acclorite::Query&) const override {
+        return {acclorite::Candidate{
+            .command = "lexical-decoy",
+            .path = "/usr/bin/lexical-decoy",
+            .summary = "process helper with lexical overlap",
+            .source = "man",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.76,
+            .score = 0.76,
+        }};
+    }
+
+    std::vector<acclorite::Candidate> inspect_commands(
+        const acclorite::Query&,
+        std::span<const std::string> commands
+    ) const override {
+        if (std::find(commands.begin(), commands.end(), "semantic-tool") == commands.end()) {
+            return {};
+        }
+        return {acclorite::Candidate{
+            .command = "semantic-tool",
+            .path = "/usr/bin/semantic-tool",
+            .summary = "source-backed but lexically distant process ancestry tool",
+            .source = "man",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.40,
+            .score = 0.40,
+        }};
+    }
+};
+
+void test_ranked_candidate_hint_adds_only_bounded_relevance_support() {
+    acclorite::SearchEngine engine;
+    engine.add_source(std::make_unique<RankedHintInspectionSource>());
+    const auto query = acclorite::Query::parse("show process ancestry as a tree");
+
+    const std::vector<acclorite::CandidateHint> identity_only{{
+        .command = "semantic-tool", .relevance_floor = 0.0
+    }};
+    const auto no_floor = engine.search(query, 10, false, false, identity_only);
+    expect(!no_floor.candidates.empty() && no_floor.candidates.front().command == "lexical-decoy",
+           "identity-only hint does not override ordinary semantic ranking");
+
+    const std::vector<acclorite::CandidateHint> ranked{{
+        .command = "semantic-tool", .relevance_floor = 0.84
+    }};
+    const auto promoted = engine.search(query, 10, true, false, ranked);
+    expect(!promoted.candidates.empty() && promoted.candidates.front().command == "semantic-tool",
+           "source-substantiated ranked hint may contribute bounded relevance support");
+    const auto semantic = std::find_if(promoted.candidates.begin(), promoted.candidates.end(), [](const auto& candidate) {
+        return candidate.command == "semantic-tool";
+    });
+    expect(semantic != promoted.candidates.end() && semantic->source == "man",
+           "ranked relevance support never becomes provenance");
+    expect(semantic != promoted.candidates.end() && semantic->ranking.has_value() &&
+           std::any_of(semantic->ranking->semantic_adjustments.begin(), semantic->ranking->semantic_adjustments.end(),
+                       [](const auto& adjustment) { return adjustment.id == "retrieval-relevance-floor"; }),
+           "ranking diagnostics expose the bounded retrieval relevance floor");
+
+    const std::vector<acclorite::CandidateHint> excessive{{
+        .command = "semantic-tool", .relevance_floor = 0.97
+    }};
+    const auto rejected = engine.search(query, 10, false, false, excessive);
+    expect(std::none_of(rejected.candidates.begin(), rejected.candidates.end(), [](const auto& candidate) {
+        return candidate.command == "semantic-tool";
+    }), "hint relevance above the bounded ceiling is rejected rather than creating exact authority");
 }
 
 void test_json_renderer_escapes() {
@@ -4132,6 +7078,8 @@ int main() {
     test_unrequested_pdf_specialization_does_not_beat_generic_text_search();
     test_explicit_specialized_tool_name_bypasses_domain_penalty();
     test_full_text_request_keeps_search_engine_specialization_relevant();
+    test_human_discovery_modifiers_do_not_dilute_parent_tool_intent();
+    test_query_relative_role_specificity_handles_hostile_human_collisions();
     test_front_door_role_constraints_prefer_user_facing_archive_tools();
     test_merged_descriptive_evidence_preserves_package_role_metadata();
     test_folder_compression_uses_positive_archive_front_door_role_evidence();
@@ -4144,6 +7092,20 @@ int main() {
     test_confidence_marks_explicit_pdf_search_clear_and_high();
     test_confidence_marks_weak_best_match_low();
     test_search_engine_attaches_confidence_without_changing_ranking();
+    test_candidate_hints_only_expand_recall_through_source_inspection();
+    test_ranked_candidate_hint_adds_only_bounded_relevance_support();
+    test_man_syntax_provider_extracts_verified_grammar_without_executing_target();
+    test_fish_completion_syntax_provider_parses_static_options_without_executing_shell();
+    test_syntax_evidence_merging_preserves_authority_and_combines_parent_child_facts();
+    test_parent_proven_child_man_grammar_resolves_compound_operation_without_executing_targets();
+    test_explicit_option_answer_is_verified_post_ranking_and_machine_visible();
+    test_child_synopsis_completeness_requires_explicit_compatible_path();
+    test_binder_only_consumes_operation_paraphrases_when_operation_proves_them();
+    test_hidden_files_paraphrase_is_not_rebound_as_root_search_data();
+    test_safety_classifier_requires_complete_source_backed_alignment();
+    test_root_synopsis_binding_handles_practical_multiargument_commands();
+    test_shell_renderer_quotes_structured_invocations();
+    test_syntax_provider_is_not_touched_for_ordinary_discovery();
     test_man_guidance_extracts_only_source_backed_examples();
     test_info_guidance_is_verified_and_falls_back_after_man();
     test_tldr_guidance_reads_exact_local_cache_without_spawning_client();
@@ -4165,6 +7127,7 @@ int main() {
     test_source_provenance_uses_exact_tokens();
     test_query_normalization();
     test_query_frame_recognizer_handles_normal_and_cursed_questions();
+    test_action_target_parser_separates_command_syntax_from_language();
     test_question_words_do_not_override_actual_action();
     test_explain_frame_suppresses_noun_state_inspection_default();
     test_query_frame_targets_extract_named_entities();
@@ -4195,6 +7158,16 @@ int main() {
     test_duplicate_action_infers_low_weight_file_context();
     test_sources_merge_instead_of_replacing_evidence();
     test_desktop_metadata_marks_hybrid_tools();
+    test_distro_detection_and_package_family_selection();
+    test_package_backends_share_common_interface();
+    test_apt_source_discovers_uninstalled_debian_tool_offline();
+    test_apt_installed_metadata_merges_with_local_tool();
+    test_dnf_source_discovers_uninstalled_fedora_tool_offline();
+    test_dnf4_frontend_fallback_and_installed_metadata_merge();
+    test_zypper_source_discovers_uninstalled_opensuse_tool_offline();
+    test_zypper_installed_metadata_merges_with_path();
+    test_xbps_source_discovers_uninstalled_void_tool_offline();
+    test_xbps_installed_metadata_merges_with_path();
     test_pacman_source_discovers_uninstalled_arch_tool();
     test_expac_sync_catalog_cache_reuses_local_snapshot_and_invalidates_on_sync_change();
     test_expac_cache_rejects_old_schema_and_changed_executable_identity();
@@ -4207,6 +7180,7 @@ int main() {
     test_index_applies_implicit_inspection_intent();
     test_index_duplicate_default_context_beats_message_catalog();
     test_index_persists_semantic_catalog();
+    test_failed_index_rebuild_preserves_last_good_snapshot();
     test_index_keeps_hybrid_metadata();
     test_index_typo_query_uses_canonical_concepts();
     test_index_recovers_misspelled_command_name();
@@ -4214,10 +7188,15 @@ int main() {
     test_fresh_index_does_not_rebuild_on_every_probe();
     test_index_fingerprints_detect_manual_and_desktop_changes();
 #endif
+    test_doctor_reports_debian_backend_readiness();
+    test_doctor_reports_fedora_backend_readiness();
+    test_doctor_reports_opensuse_backend_readiness();
+    test_doctor_reports_void_backend_readiness();
     test_doctor_is_read_only_when_index_is_missing();
     test_doctor_reports_stale_index_without_refreshing_it();
     test_doctor_distinguishes_pkgfile_binary_from_metadata_readiness();
     test_doctor_json_is_machine_readable_and_declares_no_mutation();
+    test_terminal_ux_is_hierarchical_and_color_is_opt_in();
     test_json_renderer_escapes();
 
     if (failures != 0) {

@@ -1,0 +1,1812 @@
+{
+  "benchmark_report_schema": 3,
+  "generated_at": "2026-09-12T12:50:47.851295+00:00",
+  "binary": "/home/zahed/acclorite/build/acclorite",
+  "acclorite_version": "acclorite 0.3.3",
+  "corpus": "/home/zahed/acclorite/benchmarks/corpus-actionable-v4.json",
+  "corpus_schema_version": 1,
+  "corpus_name": "acclorite-actionable-v4",
+  "environment": {
+    "platform": "Linux-6.18.42-1-cachyos-lts-x86_64-with-glibc2.44",
+    "python": "3.14.6"
+  },
+  "summary": {
+    "cases_passed": 14,
+    "cases_total": 14,
+    "case_pass_rate": 1.0,
+    "assertions_passed": 138,
+    "assertions_total": 138,
+    "assertion_pass_rate": 1.0,
+    "top1": {
+      "passed": 14,
+      "total": 14,
+      "rate": 1.0
+    },
+    "top3": {
+      "passed": 0,
+      "total": 0,
+      "rate": 0.0
+    },
+    "frame": {
+      "passed": 9,
+      "total": 9,
+      "rate": 1.0
+    },
+    "ambiguity": {
+      "passed": 0,
+      "total": 0,
+      "rate": 0.0
+    },
+    "action_target": {
+      "passed": 12,
+      "total": 12,
+      "rate": 1.0
+    },
+    "actionable": {
+      "passed": 14,
+      "total": 14,
+      "rate": 1.0
+    },
+    "latency_ms": {
+      "median": 184.88015650109446,
+      "p95": 366.09547739826667,
+      "max": 380.32721699710237
+    },
+    "profiled_search_ms": {
+      "median": 181.0945,
+      "p95": 357.48834999999997,
+      "max": 374.662
+    },
+    "stage_timings_ms": {
+      "answer-compose": {
+        "samples": 14,
+        "median": 0.6020000000000001,
+        "p95": 152.20125,
+        "max": 158.412
+      },
+      "confidence": {
+        "samples": 14,
+        "median": 0.047,
+        "p95": 0.07809999999999997,
+        "max": 0.121
+      },
+      "enricher:pkgfile": {
+        "samples": 14,
+        "median": 22.8735,
+        "p95": 56.383199999999995,
+        "max": 57.132
+      },
+      "guidance:curated": {
+        "samples": 14,
+        "median": 0.002,
+        "p95": 0.009799999999999996,
+        "max": 0.015
+      },
+      "guidance:info": {
+        "samples": 14,
+        "median": 0.3385,
+        "p95": 20.234249999999996,
+        "max": 25.184
+      },
+      "guidance:man": {
+        "samples": 14,
+        "median": 68.4355,
+        "p95": 118.4656,
+        "max": 122.584
+      },
+      "guidance:tldr": {
+        "samples": 14,
+        "median": 0.508,
+        "p95": 4.120549999999999,
+        "max": 5.247
+      },
+      "ranking-finalize": {
+        "samples": 14,
+        "median": 0.45699999999999996,
+        "p95": 1.2726499999999996,
+        "max": 1.74
+      },
+      "ranking-preferences": {
+        "samples": 14,
+        "median": 0.444,
+        "p95": 1.1202999999999999,
+        "max": 1.353
+      },
+      "ranking-prefilter": {
+        "samples": 14,
+        "median": 0.429,
+        "p95": 0.94385,
+        "max": 0.977
+      },
+      "ranking-remerge": {
+        "samples": 14,
+        "median": 0.0085,
+        "p95": 0.1491499999999999,
+        "max": 0.337
+      },
+      "ranking-sort": {
+        "samples": 14,
+        "median": 0.004,
+        "p95": 0.0421,
+        "max": 0.046
+      },
+      "source:arch-packages": {
+        "samples": 14,
+        "median": 2.2039999999999997,
+        "p95": 19.1836,
+        "max": 26.448
+      },
+      "source:index": {
+        "samples": 14,
+        "median": 3.024,
+        "p95": 5.2158999999999995,
+        "max": 5.42
+      },
+      "syntax:fish-completion": {
+        "samples": 14,
+        "median": 0.044,
+        "p95": 5.444299999999998,
+        "max": 7.64
+      },
+      "syntax:fish-completion-child": {
+        "samples": 2,
+        "median": 0.0975,
+        "p95": 0.11775,
+        "max": 0.12
+      },
+      "syntax:man": {
+        "samples": 14,
+        "median": 66.42750000000001,
+        "p95": 113.7072,
+        "max": 116.536
+      },
+      "syntax:man-child": {
+        "samples": 2,
+        "median": 152.6215,
+        "p95": 156.87265,
+        "max": 157.345
+      }
+    }
+  },
+  "cases": [
+    {
+      "case_id": "systemctl-status-bind-unit",
+      "query": "systemctl show me what nginx is doing",
+      "tags": [
+        "actionable",
+        "human",
+        "subcommand",
+        "binding",
+        "complete"
+      ],
+      "return_code": 0,
+      "latency_ms": 195.29752300149994,
+      "top1": "systemctl",
+      "top3": [
+        "systemctl"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9881,
+      "frame": "Inspect",
+      "search_ms": 189.542,
+      "stage_timings": {
+        "source:index": 5.106,
+        "source:arch-packages": 1.408,
+        "ranking-prefilter": 0.082,
+        "enricher:pkgfile": 8.649,
+        "ranking-remerge": 0.003,
+        "ranking-preferences": 0.117,
+        "ranking-sort": 0.001,
+        "ranking-finalize": 0.122,
+        "guidance:man": 85.309,
+        "guidance:info": 0.273,
+        "guidance:tldr": 0.376,
+        "guidance:curated": 0.001,
+        "syntax:man": 78.536,
+        "syntax:fish-completion": 7.64,
+        "answer-compose": 1.797,
+        "confidence": 0.039
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "systemctl"
+          ],
+          "actual": "systemctl"
+        },
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Inspect",
+          "actual": "Inspect"
+        },
+        {
+          "name": "action_target_kind",
+          "passed": true,
+          "expected": "subcommand",
+          "actual": "subcommand"
+        },
+        {
+          "name": "action_target_command",
+          "passed": true,
+          "expected": "systemctl",
+          "actual": "systemctl"
+        },
+        {
+          "name": "actionable_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "actionable_command",
+          "passed": true,
+          "expected": "systemctl",
+          "actual": "systemctl"
+        },
+        {
+          "name": "actionable_subcommand_any",
+          "passed": true,
+          "expected": [
+            "status"
+          ],
+          "actual": [
+            "status"
+          ]
+        },
+        {
+          "name": "invocation_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_complete",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_command",
+          "passed": true,
+          "expected": "systemctl",
+          "actual": "systemctl"
+        },
+        {
+          "name": "invocation_arguments",
+          "passed": true,
+          "expected": [
+            "status",
+            "nginx"
+          ],
+          "actual": [
+            "status",
+            "nginx"
+          ]
+        },
+        {
+          "name": "invocation_placeholder_count",
+          "passed": true,
+          "expected": 0,
+          "actual": 0
+        }
+      ]
+    },
+    {
+      "case_id": "systemctl-status-bind-many",
+      "query": "systemctl show what nginx and sshd are doing",
+      "tags": [
+        "actionable",
+        "human",
+        "subcommand",
+        "binding",
+        "variadic"
+      ],
+      "return_code": 0,
+      "latency_ms": 172.47749799935264,
+      "top1": "systemctl",
+      "top3": [
+        "systemctl"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9819,
+      "frame": "Inspect",
+      "search_ms": 166.714,
+      "stage_timings": {
+        "source:index": 5.42,
+        "source:arch-packages": 0.551,
+        "ranking-prefilter": 0.088,
+        "enricher:pkgfile": 4.386,
+        "ranking-remerge": 0.003,
+        "ranking-preferences": 0.117,
+        "ranking-sort": 0.001,
+        "ranking-finalize": 0.121,
+        "guidance:man": 77.017,
+        "guidance:info": 0.283,
+        "guidance:tldr": 0.058,
+        "guidance:curated": 0.001,
+        "syntax:man": 76.127,
+        "syntax:fish-completion": 0.085,
+        "answer-compose": 2.098,
+        "confidence": 0.121
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "systemctl"
+          ],
+          "actual": "systemctl"
+        },
+        {
+          "name": "action_target_kind",
+          "passed": true,
+          "expected": "subcommand",
+          "actual": "subcommand"
+        },
+        {
+          "name": "actionable_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "actionable_subcommand_any",
+          "passed": true,
+          "expected": [
+            "status"
+          ],
+          "actual": [
+            "status"
+          ]
+        },
+        {
+          "name": "invocation_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_complete",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_arguments",
+          "passed": true,
+          "expected": [
+            "status",
+            "nginx",
+            "sshd"
+          ],
+          "actual": [
+            "status",
+            "nginx",
+            "sshd"
+          ]
+        },
+        {
+          "name": "invocation_placeholder_count",
+          "passed": true,
+          "expected": 0,
+          "actual": 0
+        }
+      ]
+    },
+    {
+      "case_id": "ffmpeg-seek-bind-value",
+      "query": "ffmpeg start reading this video from 30 seconds in",
+      "tags": [
+        "actionable",
+        "human",
+        "option",
+        "binding",
+        "partial"
+      ],
+      "return_code": 0,
+      "latency_ms": 307.47693800003617,
+      "top1": "ffmpeg",
+      "top3": [
+        "ffmpeg"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9553,
+      "frame": "Discover",
+      "search_ms": 303.387,
+      "stage_timings": {
+        "source:index": 3.03,
+        "source:arch-packages": 7.599,
+        "ranking-prefilter": 0.926,
+        "enricher:pkgfile": 57.132,
+        "ranking-remerge": 0.025,
+        "ranking-preferences": 0.795,
+        "ranking-sort": 0.005,
+        "ranking-finalize": 0.826,
+        "guidance:man": 116.248,
+        "guidance:info": 0.269,
+        "guidance:tldr": 3.3,
+        "guidance:curated": 0.002,
+        "syntax:man": 112.184,
+        "syntax:fish-completion": 0.043,
+        "answer-compose": 1.559,
+        "confidence": 0.054
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "ffmpeg"
+          ],
+          "actual": "ffmpeg"
+        },
+        {
+          "name": "action_target_kind",
+          "passed": true,
+          "expected": "option",
+          "actual": "option"
+        },
+        {
+          "name": "actionable_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "actionable_option_any",
+          "passed": true,
+          "expected": [
+            "-ss"
+          ],
+          "actual": [
+            "-ss"
+          ]
+        },
+        {
+          "name": "invocation_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_complete",
+          "passed": true,
+          "expected": false,
+          "actual": false
+        },
+        {
+          "name": "invocation_command",
+          "passed": true,
+          "expected": "ffmpeg",
+          "actual": "ffmpeg"
+        },
+        {
+          "name": "invocation_arguments",
+          "passed": true,
+          "expected": [
+            "-ss",
+            "30"
+          ],
+          "actual": [
+            "-ss",
+            "30"
+          ]
+        },
+        {
+          "name": "invocation_placeholder_count",
+          "passed": true,
+          "expected": 0,
+          "actual": 0
+        }
+      ]
+    },
+    {
+      "case_id": "ffmpeg-explain-does-not-bind",
+      "query": "what does ffmpeg -ss do",
+      "tags": [
+        "actionable",
+        "explain",
+        "option",
+        "no-overclaim"
+      ],
+      "return_code": 0,
+      "latency_ms": 308.3009160000074,
+      "top1": "ffmpeg",
+      "top3": [
+        "ffmpeg"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9787,
+      "frame": "Explain",
+      "search_ms": 302.933,
+      "stage_timings": {
+        "source:index": 3.178,
+        "source:arch-packages": 2.104,
+        "ranking-prefilter": 0.787,
+        "enricher:pkgfile": 55.98,
+        "ranking-remerge": 0.019,
+        "ranking-preferences": 0.995,
+        "ranking-sort": 0.006,
+        "ranking-finalize": 1.021,
+        "guidance:man": 122.584,
+        "guidance:info": 0.29,
+        "guidance:tldr": 0.079,
+        "guidance:curated": 0.004,
+        "syntax:man": 116.536,
+        "syntax:fish-completion": 0.079,
+        "answer-compose": 0.011,
+        "confidence": 0.048
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "ffmpeg"
+          ],
+          "actual": "ffmpeg"
+        },
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Explain",
+          "actual": "Explain"
+        },
+        {
+          "name": "actionable_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "actionable_option_any",
+          "passed": true,
+          "expected": [
+            "-ss"
+          ],
+          "actual": [
+            "-ss"
+          ]
+        },
+        {
+          "name": "invocation_present",
+          "passed": true,
+          "expected": false,
+          "actual": false
+        }
+      ]
+    },
+    {
+      "case_id": "git-create-and-switch-child-man",
+      "query": "git make a fresh branch called feature/foo and put me on it",
+      "tags": [
+        "actionable",
+        "human",
+        "compound-operation",
+        "child-man",
+        "binding",
+        "complete"
+      ],
+      "return_code": 0,
+      "latency_ms": 380.32721699710237,
+      "top1": "git",
+      "top3": [
+        "git"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9786,
+      "frame": "Modify",
+      "search_ms": 374.662,
+      "stage_timings": {
+        "source:index": 2.993,
+        "source:arch-packages": 26.448,
+        "ranking-prefilter": 0.919,
+        "enricher:pkgfile": 38.783,
+        "ranking-remerge": 0.048,
+        "ranking-preferences": 0.855,
+        "ranking-sort": 0.04,
+        "ranking-finalize": 0.944,
+        "guidance:man": 73.083,
+        "guidance:info": 0.387,
+        "guidance:tldr": 3.514,
+        "guidance:curated": 0.002,
+        "syntax:man": 68.729,
+        "syntax:fish-completion": 0.045,
+        "syntax:man-child": 157.345,
+        "syntax:fish-completion-child": 0.12,
+        "answer-compose": 158.412,
+        "confidence": 0.055
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "git"
+          ],
+          "actual": "git"
+        },
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Modify",
+          "actual": "Modify"
+        },
+        {
+          "name": "action_target_kind",
+          "passed": true,
+          "expected": "operation",
+          "actual": "operation"
+        },
+        {
+          "name": "action_target_command",
+          "passed": true,
+          "expected": "git",
+          "actual": "git"
+        },
+        {
+          "name": "action_target_terms_all",
+          "passed": true,
+          "expected": [
+            "create",
+            "branch",
+            "switch"
+          ],
+          "actual": [
+            "create",
+            "branch",
+            "switch"
+          ]
+        },
+        {
+          "name": "actionable_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "actionable_command",
+          "passed": true,
+          "expected": "git",
+          "actual": "git"
+        },
+        {
+          "name": "actionable_option_any",
+          "passed": true,
+          "expected": [
+            "-c",
+            "--create"
+          ],
+          "actual": [
+            "--create",
+            "-c"
+          ]
+        },
+        {
+          "name": "actionable_subcommand_any",
+          "passed": true,
+          "expected": [
+            "switch"
+          ],
+          "actual": [
+            "switch"
+          ]
+        },
+        {
+          "name": "invocation_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_complete",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_command",
+          "passed": true,
+          "expected": "git",
+          "actual": "git"
+        },
+        {
+          "name": "invocation_arguments_all",
+          "passed": true,
+          "expected": [
+            "switch",
+            "feature/foo"
+          ],
+          "actual": [
+            "switch",
+            "--create",
+            "feature/foo"
+          ]
+        },
+        {
+          "name": "invocation_placeholder_count",
+          "passed": true,
+          "expected": 0,
+          "actual": 0
+        }
+      ]
+    },
+    {
+      "case_id": "git-create-and-go-there-child-man",
+      "query": "git make a new branch called release/test and go there",
+      "tags": [
+        "actionable",
+        "human",
+        "compound-operation",
+        "child-man",
+        "binding",
+        "complete"
+      ],
+      "return_code": 0,
+      "latency_ms": 358.4322329988936,
+      "top1": "git",
+      "top3": [
+        "git"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9786,
+      "frame": "Modify",
+      "search_ms": 348.241,
+      "stage_timings": {
+        "source:index": 2.894,
+        "source:arch-packages": 15.272,
+        "ranking-prefilter": 0.977,
+        "enricher:pkgfile": 40.472,
+        "ranking-remerge": 0.337,
+        "ranking-preferences": 1.353,
+        "ranking-sort": 0.046,
+        "ranking-finalize": 1.74,
+        "guidance:man": 69.028,
+        "guidance:info": 0.272,
+        "guidance:tldr": 0.062,
+        "guidance:curated": 0.002,
+        "syntax:man": 68.309,
+        "syntax:fish-completion": 0.027,
+        "syntax:man-child": 147.898,
+        "syntax:fish-completion-child": 0.075,
+        "answer-compose": 148.857,
+        "confidence": 0.049
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "git"
+          ],
+          "actual": "git"
+        },
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Modify",
+          "actual": "Modify"
+        },
+        {
+          "name": "action_target_kind",
+          "passed": true,
+          "expected": "operation",
+          "actual": "operation"
+        },
+        {
+          "name": "action_target_terms_all",
+          "passed": true,
+          "expected": [
+            "create",
+            "branch",
+            "switch"
+          ],
+          "actual": [
+            "create",
+            "branch",
+            "switch"
+          ]
+        },
+        {
+          "name": "actionable_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "actionable_option_any",
+          "passed": true,
+          "expected": [
+            "-c",
+            "--create"
+          ],
+          "actual": [
+            "--create",
+            "-c"
+          ]
+        },
+        {
+          "name": "actionable_subcommand_any",
+          "passed": true,
+          "expected": [
+            "switch"
+          ],
+          "actual": [
+            "switch"
+          ]
+        },
+        {
+          "name": "invocation_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_complete",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_arguments_all",
+          "passed": true,
+          "expected": [
+            "switch",
+            "release/test"
+          ],
+          "actual": [
+            "switch",
+            "--create",
+            "release/test"
+          ]
+        }
+      ]
+    },
+    {
+      "case_id": "git-create-only-does-not-add-switch",
+      "query": "git make a fresh branch called feature/only",
+      "tags": [
+        "actionable",
+        "human",
+        "subcommand",
+        "no-extra-side-effect",
+        "child-man"
+      ],
+      "return_code": 0,
+      "latency_ms": 178.31032200047048,
+      "top1": "git",
+      "top3": [
+        "git"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9786,
+      "frame": "Modify",
+      "search_ms": 174.562,
+      "stage_timings": {
+        "source:index": 3.293,
+        "source:arch-packages": 13.637,
+        "ranking-prefilter": 0.828,
+        "enricher:pkgfile": 28.055,
+        "ranking-remerge": 0.033,
+        "ranking-preferences": 0.868,
+        "ranking-sort": 0.04,
+        "ranking-finalize": 0.942,
+        "guidance:man": 62.977,
+        "guidance:info": 0.28,
+        "guidance:tldr": 0.067,
+        "guidance:curated": 0.002,
+        "syntax:man": 63.466,
+        "syntax:fish-completion": 0.027,
+        "answer-compose": 0.679,
+        "confidence": 0.054
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "git"
+          ],
+          "actual": "git"
+        },
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Modify",
+          "actual": "Modify"
+        },
+        {
+          "name": "action_target_kind",
+          "passed": true,
+          "expected": "subcommand",
+          "actual": "subcommand"
+        },
+        {
+          "name": "action_target_terms_all",
+          "passed": true,
+          "expected": [
+            "create",
+            "branch"
+          ],
+          "actual": [
+            "create",
+            "branch"
+          ]
+        },
+        {
+          "name": "actionable_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "actionable_subcommand_any",
+          "passed": true,
+          "expected": [
+            "branch"
+          ],
+          "actual": [
+            "branch"
+          ]
+        },
+        {
+          "name": "invocation_present",
+          "passed": true,
+          "expected": false,
+          "actual": false
+        }
+      ]
+    },
+    {
+      "case_id": "rg-hidden-root-grammar-insufficient",
+      "query": "rg is skipping dotfiles, make it search them too",
+      "tags": [
+        "actionable",
+        "human",
+        "option",
+        "no-overclaim"
+      ],
+      "return_code": 0,
+      "latency_ms": 167.96455899748253,
+      "top1": "rg",
+      "top3": [
+        "rg"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9614,
+      "frame": "Discover",
+      "search_ms": 164.12,
+      "stage_timings": {
+        "source:index": 2.584,
+        "source:arch-packages": 2.468,
+        "ranking-prefilter": 0.017,
+        "enricher:pkgfile": 20.299,
+        "ranking-remerge": 0.006,
+        "ranking-preferences": 0.037,
+        "ranking-sort": 0.001,
+        "ranking-finalize": 0.046,
+        "guidance:man": 67.843,
+        "guidance:info": 0.286,
+        "guidance:tldr": 0.072,
+        "guidance:curated": 0.003,
+        "syntax:man": 64.546,
+        "syntax:fish-completion": 4.262,
+        "answer-compose": 1.408,
+        "confidence": 0.046
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "rg"
+          ],
+          "actual": "rg"
+        },
+        {
+          "name": "actionable_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "actionable_option_any",
+          "passed": true,
+          "expected": [
+            "--hidden",
+            "-."
+          ],
+          "actual": [
+            "--hidden",
+            "-."
+          ]
+        },
+        {
+          "name": "invocation_present",
+          "passed": true,
+          "expected": false,
+          "actual": false
+        }
+      ]
+    },
+    {
+      "case_id": "mv-rename-source-dest",
+      "query": "mv rename ~/uncool-shit to ~/cool-shit",
+      "tags": [
+        "actionable",
+        "human",
+        "root-synopsis",
+        "binding",
+        "multi-argument",
+        "complete"
+      ],
+      "return_code": 0,
+      "latency_ms": 116.57531799937715,
+      "top1": "mv",
+      "top3": [
+        "mv"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9828,
+      "frame": "Modify",
+      "search_ms": 112.68,
+      "stage_timings": {
+        "source:index": 2.48,
+        "source:arch-packages": 0.386,
+        "ranking-prefilter": 0.002,
+        "enricher:pkgfile": 0.049,
+        "ranking-remerge": 0.001,
+        "ranking-preferences": 0.003,
+        "ranking-sort": 0.0,
+        "ranking-finalize": 0.004,
+        "guidance:man": 43.323,
+        "guidance:info": 15.902,
+        "guidance:tldr": 0.64,
+        "guidance:curated": 0.002,
+        "syntax:man": 49.636,
+        "syntax:fish-completion": 0.043,
+        "answer-compose": 0.035,
+        "confidence": 0.042
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "mv"
+          ],
+          "actual": "mv"
+        },
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Modify",
+          "actual": "Modify"
+        },
+        {
+          "name": "action_target_kind",
+          "passed": true,
+          "expected": "operation",
+          "actual": "operation"
+        },
+        {
+          "name": "action_target_command",
+          "passed": true,
+          "expected": "mv",
+          "actual": "mv"
+        },
+        {
+          "name": "action_target_terms_all",
+          "passed": true,
+          "expected": [
+            "rename",
+            "move"
+          ],
+          "actual": [
+            "rename",
+            "move"
+          ]
+        },
+        {
+          "name": "actionable_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "actionable_command",
+          "passed": true,
+          "expected": "mv",
+          "actual": "mv"
+        },
+        {
+          "name": "invocation_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_complete",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_command",
+          "passed": true,
+          "expected": "mv",
+          "actual": "mv"
+        },
+        {
+          "name": "invocation_arguments",
+          "passed": true,
+          "expected": [
+            "~/uncool-shit",
+            "~/cool-shit"
+          ],
+          "actual": [
+            "~/uncool-shit",
+            "~/cool-shit"
+          ]
+        },
+        {
+          "name": "invocation_placeholder_count",
+          "passed": true,
+          "expected": 0,
+          "actual": 0
+        }
+      ]
+    },
+    {
+      "case_id": "cp-copy-source-dest",
+      "query": "cp copy ~/notes.txt to ~/Backup/notes.txt",
+      "tags": [
+        "actionable",
+        "human",
+        "root-synopsis",
+        "binding",
+        "multi-argument",
+        "complete"
+      ],
+      "return_code": 0,
+      "latency_ms": 191.44999100171844,
+      "top1": "cp",
+      "top3": [
+        "cp"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9614,
+      "frame": "Discover",
+      "search_ms": 187.627,
+      "stage_timings": {
+        "source:index": 2.596,
+        "source:arch-packages": 3.872,
+        "ranking-prefilter": 0.04,
+        "enricher:pkgfile": 6.621,
+        "ranking-remerge": 0.002,
+        "ranking-preferences": 0.034,
+        "ranking-sort": 0.001,
+        "ranking-finalize": 0.038,
+        "guidance:man": 64.281,
+        "guidance:info": 25.184,
+        "guidance:tldr": 2.553,
+        "guidance:curated": 0.006,
+        "syntax:man": 82.089,
+        "syntax:fish-completion": 0.054,
+        "answer-compose": 0.047,
+        "confidence": 0.046
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "cp"
+          ],
+          "actual": "cp"
+        },
+        {
+          "name": "action_target_kind",
+          "passed": true,
+          "expected": "operation",
+          "actual": "operation"
+        },
+        {
+          "name": "action_target_command",
+          "passed": true,
+          "expected": "cp",
+          "actual": "cp"
+        },
+        {
+          "name": "action_target_terms_all",
+          "passed": true,
+          "expected": [
+            "copy"
+          ],
+          "actual": [
+            "copy"
+          ]
+        },
+        {
+          "name": "actionable_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "actionable_command",
+          "passed": true,
+          "expected": "cp",
+          "actual": "cp"
+        },
+        {
+          "name": "invocation_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_complete",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_command",
+          "passed": true,
+          "expected": "cp",
+          "actual": "cp"
+        },
+        {
+          "name": "invocation_arguments",
+          "passed": true,
+          "expected": [
+            "~/notes.txt",
+            "~/Backup/notes.txt"
+          ],
+          "actual": [
+            "~/notes.txt",
+            "~/Backup/notes.txt"
+          ]
+        },
+        {
+          "name": "invocation_placeholder_count",
+          "passed": true,
+          "expected": 0,
+          "actual": 0
+        }
+      ]
+    },
+    {
+      "case_id": "mkdir-create-directory",
+      "query": "mkdir create directory ~/Projects/demo",
+      "tags": [
+        "actionable",
+        "human",
+        "root-synopsis",
+        "binding",
+        "variadic",
+        "complete"
+      ],
+      "return_code": 0,
+      "latency_ms": 196.80699899981846,
+      "top1": "mkdir",
+      "top3": [
+        "mkdir"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9828,
+      "frame": "Modify",
+      "search_ms": 190.891,
+      "stage_timings": {
+        "source:index": 4.853,
+        "source:arch-packages": 1.389,
+        "ranking-prefilter": 0.26,
+        "enricher:pkgfile": 22.765,
+        "ranking-remerge": 0.007,
+        "ranking-preferences": 0.278,
+        "ranking-sort": 0.003,
+        "ranking-finalize": 0.289,
+        "guidance:man": 82.482,
+        "guidance:info": 17.569,
+        "guidance:tldr": 0.766,
+        "guidance:curated": 0.015,
+        "syntax:man": 59.992,
+        "syntax:fish-completion": 0.041,
+        "answer-compose": 0.03,
+        "confidence": 0.043
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "mkdir"
+          ],
+          "actual": "mkdir"
+        },
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Modify",
+          "actual": "Modify"
+        },
+        {
+          "name": "action_target_kind",
+          "passed": true,
+          "expected": "operation",
+          "actual": "operation"
+        },
+        {
+          "name": "action_target_command",
+          "passed": true,
+          "expected": "mkdir",
+          "actual": "mkdir"
+        },
+        {
+          "name": "action_target_terms_all",
+          "passed": true,
+          "expected": [
+            "create",
+            "directory"
+          ],
+          "actual": [
+            "create",
+            "directory"
+          ]
+        },
+        {
+          "name": "actionable_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "actionable_command",
+          "passed": true,
+          "expected": "mkdir",
+          "actual": "mkdir"
+        },
+        {
+          "name": "invocation_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_complete",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_command",
+          "passed": true,
+          "expected": "mkdir",
+          "actual": "mkdir"
+        },
+        {
+          "name": "invocation_arguments",
+          "passed": true,
+          "expected": [
+            "~/Projects/demo"
+          ],
+          "actual": [
+            "~/Projects/demo"
+          ]
+        },
+        {
+          "name": "invocation_placeholder_count",
+          "passed": true,
+          "expected": 0,
+          "actual": 0
+        }
+      ]
+    },
+    {
+      "case_id": "grep-pattern-and-file",
+      "query": "grep search TODO in ~/notes.txt",
+      "tags": [
+        "actionable",
+        "human",
+        "root-synopsis",
+        "binding",
+        "pattern",
+        "path",
+        "complete"
+      ],
+      "return_code": 0,
+      "latency_ms": 174.38777200004552,
+      "top1": "grep",
+      "top3": [
+        "grep"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9614,
+      "frame": "Discover",
+      "search_ms": 169.592,
+      "stage_timings": {
+        "source:index": 4.319,
+        "source:arch-packages": 2.304,
+        "ranking-prefilter": 0.802,
+        "enricher:pkgfile": 22.982,
+        "ranking-remerge": 0.011,
+        "ranking-preferences": 0.801,
+        "ranking-sort": 0.007,
+        "ranking-finalize": 0.819,
+        "guidance:man": 64.656,
+        "guidance:info": 3.003,
+        "guidance:tldr": 5.247,
+        "guidance:curated": 0.007,
+        "syntax:man": 64.443,
+        "syntax:fish-completion": 0.164,
+        "answer-compose": 0.525,
+        "confidence": 0.052
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "grep"
+          ],
+          "actual": "grep"
+        },
+        {
+          "name": "action_target_kind",
+          "passed": true,
+          "expected": "operation",
+          "actual": "operation"
+        },
+        {
+          "name": "action_target_command",
+          "passed": true,
+          "expected": "grep",
+          "actual": "grep"
+        },
+        {
+          "name": "action_target_terms_all",
+          "passed": true,
+          "expected": [
+            "search"
+          ],
+          "actual": [
+            "search"
+          ]
+        },
+        {
+          "name": "actionable_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "actionable_command",
+          "passed": true,
+          "expected": "grep",
+          "actual": "grep"
+        },
+        {
+          "name": "invocation_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_complete",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_command",
+          "passed": true,
+          "expected": "grep",
+          "actual": "grep"
+        },
+        {
+          "name": "invocation_arguments",
+          "passed": true,
+          "expected": [
+            "TODO",
+            "~/notes.txt"
+          ],
+          "actual": [
+            "TODO",
+            "~/notes.txt"
+          ]
+        },
+        {
+          "name": "invocation_placeholder_count",
+          "passed": true,
+          "expected": 0,
+          "actual": 0
+        }
+      ]
+    },
+    {
+      "case_id": "touch-create-file",
+      "query": "touch create file ~/tmp/new-note.txt",
+      "tags": [
+        "actionable",
+        "human",
+        "root-synopsis",
+        "binding",
+        "complete"
+      ],
+      "return_code": 0,
+      "latency_ms": 144.6718030019838,
+      "top1": "touch",
+      "top3": [
+        "touch"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9828,
+      "frame": "Modify",
+      "search_ms": 138.938,
+      "stage_timings": {
+        "source:index": 3.002,
+        "source:arch-packages": 1.418,
+        "ranking-prefilter": 0.598,
+        "enricher:pkgfile": 18.799,
+        "ranking-remerge": 0.01,
+        "ranking-preferences": 0.61,
+        "ranking-sort": 0.005,
+        "ranking-finalize": 0.625,
+        "guidance:man": 50.325,
+        "guidance:info": 11.546,
+        "guidance:tldr": 0.892,
+        "guidance:curated": 0.001,
+        "syntax:man": 51.443,
+        "syntax:fish-completion": 0.043,
+        "answer-compose": 0.034,
+        "confidence": 0.045
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "touch"
+          ],
+          "actual": "touch"
+        },
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Modify",
+          "actual": "Modify"
+        },
+        {
+          "name": "action_target_kind",
+          "passed": true,
+          "expected": "operation",
+          "actual": "operation"
+        },
+        {
+          "name": "action_target_command",
+          "passed": true,
+          "expected": "touch",
+          "actual": "touch"
+        },
+        {
+          "name": "actionable_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "actionable_command",
+          "passed": true,
+          "expected": "touch",
+          "actual": "touch"
+        },
+        {
+          "name": "invocation_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_complete",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_command",
+          "passed": true,
+          "expected": "touch",
+          "actual": "touch"
+        },
+        {
+          "name": "invocation_arguments",
+          "passed": true,
+          "expected": [
+            "~/tmp/new-note.txt"
+          ],
+          "actual": [
+            "~/tmp/new-note.txt"
+          ]
+        },
+        {
+          "name": "invocation_placeholder_count",
+          "passed": true,
+          "expected": 0,
+          "actual": 0
+        }
+      ]
+    },
+    {
+      "case_id": "rm-remove-file",
+      "query": "rm remove ~/tmp/junk.txt",
+      "tags": [
+        "actionable",
+        "human",
+        "root-synopsis",
+        "binding",
+        "complete"
+      ],
+      "return_code": 0,
+      "latency_ms": 150.66677300274023,
+      "top1": "rm",
+      "top3": [
+        "rm"
+      ],
+      "ambiguity": "clear",
+      "confidence": 0.9828,
+      "frame": "Modify",
+      "search_ms": 145.102,
+      "stage_timings": {
+        "source:index": 3.018,
+        "source:arch-packages": 0.692,
+        "ranking-prefilter": 0.038,
+        "enricher:pkgfile": 23.279,
+        "ranking-remerge": 0.005,
+        "ranking-preferences": 0.051,
+        "ranking-sort": 0.002,
+        "ranking-finalize": 0.058,
+        "guidance:man": 56.017,
+        "guidance:info": 11.471,
+        "guidance:tldr": 0.355,
+        "guidance:curated": 0.002,
+        "syntax:man": 49.7,
+        "syntax:fish-completion": 0.041,
+        "answer-compose": 0.057,
+        "confidence": 0.031
+      },
+      "forensics": null,
+      "error": "",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "top1_any",
+          "passed": true,
+          "expected": [
+            "rm"
+          ],
+          "actual": "rm"
+        },
+        {
+          "name": "frame",
+          "passed": true,
+          "expected": "Modify",
+          "actual": "Modify"
+        },
+        {
+          "name": "action_target_kind",
+          "passed": true,
+          "expected": "operation",
+          "actual": "operation"
+        },
+        {
+          "name": "action_target_command",
+          "passed": true,
+          "expected": "rm",
+          "actual": "rm"
+        },
+        {
+          "name": "action_target_terms_all",
+          "passed": true,
+          "expected": [
+            "remove",
+            "delete"
+          ],
+          "actual": [
+            "remove",
+            "delete"
+          ]
+        },
+        {
+          "name": "actionable_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "actionable_command",
+          "passed": true,
+          "expected": "rm",
+          "actual": "rm"
+        },
+        {
+          "name": "invocation_present",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_complete",
+          "passed": true,
+          "expected": true,
+          "actual": true
+        },
+        {
+          "name": "invocation_command",
+          "passed": true,
+          "expected": "rm",
+          "actual": "rm"
+        },
+        {
+          "name": "invocation_arguments",
+          "passed": true,
+          "expected": [
+            "~/tmp/junk.txt"
+          ],
+          "actual": [
+            "~/tmp/junk.txt"
+          ]
+        },
+        {
+          "name": "invocation_placeholder_count",
+          "passed": true,
+          "expected": 0,
+          "actual": 0
+        }
+      ]
+    }
+  ]
+}

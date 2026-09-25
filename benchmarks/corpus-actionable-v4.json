@@ -1,0 +1,438 @@
+{
+  "schema_version": 1,
+  "name": "acclorite-actionable-v4",
+  "description": "Milestone-10 practical binding corpus. Carries forward v3 and adds verified root-SYNOPSIS binding for common multi-argument commands so actionable answers cover ordinary copy/move/search/create/remove tasks, not only subcommands and isolated options.",
+  "cases": [
+    {
+      "id": "systemctl-status-bind-unit",
+      "query": "systemctl show me what nginx is doing",
+      "tags": [
+        "actionable",
+        "human",
+        "subcommand",
+        "binding",
+        "complete"
+      ],
+      "expect": {
+        "top1_any": [
+          "systemctl"
+        ],
+        "frame": "Inspect",
+        "action_target_kind": "subcommand",
+        "action_target_command": "systemctl",
+        "actionable_present": true,
+        "actionable_command": "systemctl",
+        "actionable_subcommand_any": [
+          "status"
+        ],
+        "invocation_present": true,
+        "invocation_command": "systemctl",
+        "invocation_arguments": [
+          "status",
+          "nginx"
+        ],
+        "invocation_complete": true,
+        "invocation_placeholder_count": 0
+      }
+    },
+    {
+      "id": "systemctl-status-bind-many",
+      "query": "systemctl show what nginx and sshd are doing",
+      "tags": [
+        "actionable",
+        "human",
+        "subcommand",
+        "binding",
+        "variadic"
+      ],
+      "expect": {
+        "top1_any": [
+          "systemctl"
+        ],
+        "action_target_kind": "subcommand",
+        "actionable_present": true,
+        "actionable_subcommand_any": [
+          "status"
+        ],
+        "invocation_present": true,
+        "invocation_arguments": [
+          "status",
+          "nginx",
+          "sshd"
+        ],
+        "invocation_complete": true,
+        "invocation_placeholder_count": 0
+      }
+    },
+    {
+      "id": "ffmpeg-seek-bind-value",
+      "query": "ffmpeg start reading this video from 30 seconds in",
+      "tags": [
+        "actionable",
+        "human",
+        "option",
+        "binding",
+        "partial"
+      ],
+      "expect": {
+        "top1_any": [
+          "ffmpeg"
+        ],
+        "action_target_kind": "option",
+        "actionable_present": true,
+        "actionable_option_any": [
+          "-ss"
+        ],
+        "invocation_present": true,
+        "invocation_command": "ffmpeg",
+        "invocation_arguments": [
+          "-ss",
+          "30"
+        ],
+        "invocation_complete": false,
+        "invocation_placeholder_count": 0
+      }
+    },
+    {
+      "id": "ffmpeg-explain-does-not-bind",
+      "query": "what does ffmpeg -ss do",
+      "tags": [
+        "actionable",
+        "explain",
+        "option",
+        "no-overclaim"
+      ],
+      "expect": {
+        "top1_any": [
+          "ffmpeg"
+        ],
+        "frame": "Explain",
+        "actionable_present": true,
+        "actionable_option_any": [
+          "-ss"
+        ],
+        "invocation_present": false
+      }
+    },
+    {
+      "id": "git-create-and-switch-child-man",
+      "query": "git make a fresh branch called feature/foo and put me on it",
+      "tags": [
+        "actionable",
+        "human",
+        "compound-operation",
+        "child-man",
+        "binding",
+        "complete"
+      ],
+      "expect": {
+        "top1_any": [
+          "git"
+        ],
+        "frame": "Modify",
+        "action_target_kind": "operation",
+        "action_target_command": "git",
+        "action_target_terms_all": [
+          "create",
+          "branch",
+          "switch"
+        ],
+        "actionable_present": true,
+        "actionable_command": "git",
+        "actionable_option_any": [
+          "-c",
+          "--create"
+        ],
+        "actionable_subcommand_any": [
+          "switch"
+        ],
+        "invocation_present": true,
+        "invocation_command": "git",
+        "invocation_arguments_all": [
+          "switch",
+          "feature/foo"
+        ],
+        "invocation_complete": true,
+        "invocation_placeholder_count": 0
+      }
+    },
+    {
+      "id": "git-create-and-go-there-child-man",
+      "query": "git make a new branch called release/test and go there",
+      "tags": [
+        "actionable",
+        "human",
+        "compound-operation",
+        "child-man",
+        "binding",
+        "complete"
+      ],
+      "expect": {
+        "top1_any": [
+          "git"
+        ],
+        "frame": "Modify",
+        "action_target_kind": "operation",
+        "action_target_terms_all": [
+          "create",
+          "branch",
+          "switch"
+        ],
+        "actionable_present": true,
+        "actionable_option_any": [
+          "-c",
+          "--create"
+        ],
+        "actionable_subcommand_any": [
+          "switch"
+        ],
+        "invocation_present": true,
+        "invocation_arguments_all": [
+          "switch",
+          "release/test"
+        ],
+        "invocation_complete": true
+      }
+    },
+    {
+      "id": "git-create-only-does-not-add-switch",
+      "query": "git make a fresh branch called feature/only",
+      "tags": [
+        "actionable",
+        "human",
+        "subcommand",
+        "no-extra-side-effect",
+        "child-man"
+      ],
+      "expect": {
+        "top1_any": [
+          "git"
+        ],
+        "frame": "Modify",
+        "action_target_kind": "subcommand",
+        "action_target_terms_all": [
+          "create",
+          "branch"
+        ],
+        "actionable_present": true,
+        "actionable_subcommand_any": [
+          "branch"
+        ],
+        "invocation_present": false
+      }
+    },
+    {
+      "id": "rg-hidden-root-grammar-insufficient",
+      "query": "rg is skipping dotfiles, make it search them too",
+      "tags": [
+        "actionable",
+        "human",
+        "option",
+        "no-overclaim"
+      ],
+      "expect": {
+        "top1_any": [
+          "rg"
+        ],
+        "actionable_present": true,
+        "actionable_option_any": [
+          "--hidden",
+          "-."
+        ],
+        "invocation_present": false
+      }
+    },
+    {
+      "id": "mv-rename-source-dest",
+      "query": "mv rename ~/uncool-shit to ~/cool-shit",
+      "tags": [
+        "actionable",
+        "human",
+        "root-synopsis",
+        "binding",
+        "multi-argument",
+        "complete"
+      ],
+      "expect": {
+        "top1_any": [
+          "mv"
+        ],
+        "frame": "Modify",
+        "action_target_kind": "operation",
+        "action_target_command": "mv",
+        "action_target_terms_all": [
+          "rename",
+          "move"
+        ],
+        "actionable_present": true,
+        "actionable_command": "mv",
+        "invocation_present": true,
+        "invocation_command": "mv",
+        "invocation_arguments": [
+          "~/uncool-shit",
+          "~/cool-shit"
+        ],
+        "invocation_complete": true,
+        "invocation_placeholder_count": 0
+      }
+    },
+    {
+      "id": "cp-copy-source-dest",
+      "query": "cp copy ~/notes.txt to ~/Backup/notes.txt",
+      "tags": [
+        "actionable",
+        "human",
+        "root-synopsis",
+        "binding",
+        "multi-argument",
+        "complete"
+      ],
+      "expect": {
+        "top1_any": [
+          "cp"
+        ],
+        "action_target_kind": "operation",
+        "action_target_command": "cp",
+        "action_target_terms_all": [
+          "copy"
+        ],
+        "actionable_present": true,
+        "actionable_command": "cp",
+        "invocation_present": true,
+        "invocation_command": "cp",
+        "invocation_arguments": [
+          "~/notes.txt",
+          "~/Backup/notes.txt"
+        ],
+        "invocation_complete": true,
+        "invocation_placeholder_count": 0
+      }
+    },
+    {
+      "id": "mkdir-create-directory",
+      "query": "mkdir create directory ~/Projects/demo",
+      "tags": [
+        "actionable",
+        "human",
+        "root-synopsis",
+        "binding",
+        "variadic",
+        "complete"
+      ],
+      "expect": {
+        "top1_any": [
+          "mkdir"
+        ],
+        "frame": "Modify",
+        "action_target_kind": "operation",
+        "action_target_command": "mkdir",
+        "action_target_terms_all": [
+          "create",
+          "directory"
+        ],
+        "actionable_present": true,
+        "actionable_command": "mkdir",
+        "invocation_present": true,
+        "invocation_command": "mkdir",
+        "invocation_arguments": [
+          "~/Projects/demo"
+        ],
+        "invocation_complete": true,
+        "invocation_placeholder_count": 0
+      }
+    },
+    {
+      "id": "grep-pattern-and-file",
+      "query": "grep search TODO in ~/notes.txt",
+      "tags": [
+        "actionable",
+        "human",
+        "root-synopsis",
+        "binding",
+        "pattern",
+        "path",
+        "complete"
+      ],
+      "expect": {
+        "top1_any": [
+          "grep"
+        ],
+        "action_target_kind": "operation",
+        "action_target_command": "grep",
+        "action_target_terms_all": [
+          "search"
+        ],
+        "actionable_present": true,
+        "actionable_command": "grep",
+        "invocation_present": true,
+        "invocation_command": "grep",
+        "invocation_arguments": [
+          "TODO",
+          "~/notes.txt"
+        ],
+        "invocation_complete": true,
+        "invocation_placeholder_count": 0
+      }
+    },
+    {
+      "id": "touch-create-file",
+      "query": "touch create file ~/tmp/new-note.txt",
+      "tags": [
+        "actionable",
+        "human",
+        "root-synopsis",
+        "binding",
+        "complete"
+      ],
+      "expect": {
+        "top1_any": [
+          "touch"
+        ],
+        "frame": "Modify",
+        "action_target_kind": "operation",
+        "action_target_command": "touch",
+        "actionable_present": true,
+        "actionable_command": "touch",
+        "invocation_present": true,
+        "invocation_command": "touch",
+        "invocation_arguments": [
+          "~/tmp/new-note.txt"
+        ],
+        "invocation_complete": true,
+        "invocation_placeholder_count": 0
+      }
+    },
+    {
+      "id": "rm-remove-file",
+      "query": "rm remove ~/tmp/junk.txt",
+      "tags": [
+        "actionable",
+        "human",
+        "root-synopsis",
+        "binding",
+        "complete"
+      ],
+      "expect": {
+        "top1_any": [
+          "rm"
+        ],
+        "frame": "Modify",
+        "action_target_kind": "operation",
+        "action_target_command": "rm",
+        "action_target_terms_all": [
+          "remove",
+          "delete"
+        ],
+        "actionable_present": true,
+        "actionable_command": "rm",
+        "invocation_present": true,
+        "invocation_command": "rm",
+        "invocation_arguments": [
+          "~/tmp/junk.txt"
+        ],
+        "invocation_complete": true,
+        "invocation_placeholder_count": 0
+      }
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 #include "acclorite/core/search_engine.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <ranges>
@@ -9,12 +10,16 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
+#include "acclorite/answer/composer.hpp"
 #include "acclorite/query/frame.hpp"
+#include "acclorite/query/action_target.hpp"
 #include "acclorite/query/targets.hpp"
 #include "acclorite/ranking/preference.hpp"
 #include "acclorite/ranking/confidence.hpp"
+#include "acclorite/syntax/grammar_merge.hpp"
 
 namespace acclorite {
 namespace {
@@ -175,6 +180,9 @@ void merge_candidate(Candidate& target, Candidate incoming) {
     target.cli_capable = target.cli_capable || incoming.cli_capable;
     target.gui_capable = target.gui_capable || incoming.gui_capable;
     target.semantic_fit = std::max(target.semantic_fit, incoming.semantic_fit);
+    target.retrieval_relevance_floor = std::max(
+        target.retrieval_relevance_floor, incoming.retrieval_relevance_floor
+    );
     merge_terms(target.matched_terms, incoming.matched_terms);
     merge_terms(target.provided_commands, incoming.provided_commands);
 
@@ -219,6 +227,18 @@ void merge_candidate(Candidate& target, Candidate incoming) {
 
 bool exact_target_match(const Candidate& candidate, const std::string& target) {
     return candidate.command == target || (!candidate.package.empty() && candidate.package == target);
+}
+
+bool valid_candidate_hint(const std::string_view hint) {
+    if (hint.empty() || hint.size() > 128) {
+        return false;
+    }
+    for (const unsigned char ch : hint) {
+        if (!(std::isalnum(ch) || ch == '_' || ch == '+' || ch == '.' || ch == '-')) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void finalize_candidate_score(
@@ -280,11 +300,16 @@ void SearchEngine::add_guidance_provider(std::unique_ptr<GuidanceProvider> provi
     guidance_providers_.push_back(std::move(provider));
 }
 
+void SearchEngine::add_syntax_provider(std::unique_ptr<CommandSyntaxProvider> provider) {
+    syntax_providers_.push_back(std::move(provider));
+}
+
 SearchResult SearchEngine::search(
     const Query& input_query,
     const std::size_t limit,
     const bool explain_ranking,
-    const bool profile
+    const bool profile,
+    const std::span<const CandidateHint> candidate_hints
 ) const {
     using Clock = std::chrono::steady_clock;
     const auto search_started = Clock::now();
@@ -292,15 +317,21 @@ SearchResult SearchEngine::search(
     Query query = input_query;
     query.explain_ranking = explain_ranking;
     query.frame = query::recognize_frame(query);
+    query.action_target = query::detect_action_target(query);
     query.targets = query::frame_targets(query);
+    if (query.action_target && query.action_target->command) {
+        query.targets = {*query.action_target->command};
+    }
 
     SearchResult result{
         .raw_query = query.raw,
         .normalized_query = query.normalized,
         .frame = query.frame,
         .targets = query.targets,
+        .action_target = query.action_target,
         .locations = {},
         .candidates = {},
+        .actionable_answer = std::nullopt,
         .confidence = {},
         .clarifications = {},
         .timing = SearchTiming{.enabled = profile, .total_ms = 0.0, .stages = {}},
@@ -356,8 +387,10 @@ SearchResult SearchEngine::search(
         }
     }
 
-    const auto collect = [&](const Query& requested_query) {
+    const auto collect = [&](const Query& requested_query, const bool include_candidate_hints = false) {
         std::unordered_map<std::string, Candidate> merged;
+        std::vector<const KnowledgeSource*> active_sources;
+        active_sources.reserve(sources_.size());
         for (const auto& source : sources_) {
             if (!source) {
                 continue;
@@ -367,6 +400,7 @@ SearchResult SearchEngine::search(
                 record_stage(std::string("source:") + std::string(source->diagnostic_name()), stage_started, 0);
                 continue;
             }
+            active_sources.push_back(source.get());
             auto source_candidates = source->search(requested_query);
             const std::size_t source_count = source_candidates.size();
             record_stage(
@@ -378,6 +412,63 @@ SearchResult SearchEngine::search(
                 auto [it, inserted] = merged.try_emplace(candidate.command, candidate);
                 if (!inserted) {
                     merge_candidate(it->second, std::move(candidate));
+                }
+            }
+        }
+
+        // M11 Experiment F seam: another recall mechanism may suggest command
+        // identities, but the hint itself contributes no score or provenance.
+        // Each ordinary source gets a bounded chance to independently inspect
+        // those identities against the original query. Only candidates returned
+        // by a source are admitted to the normal merge/enrichment/ranking path.
+        if (include_candidate_hints && !candidate_hints.empty()) {
+            constexpr std::size_t kMaxCandidateHints = 32;
+            std::vector<std::string> validated_names;
+            validated_names.reserve(std::min(kMaxCandidateHints, candidate_hints.size()));
+            std::unordered_map<std::string, double> hint_floors;
+            for (const auto& hint : candidate_hints) {
+                if (validated_names.size() >= kMaxCandidateHints) {
+                    break;
+                }
+                if (!valid_candidate_hint(hint.command) || !std::isfinite(hint.relevance_floor) ||
+                    hint.relevance_floor < 0.0 || hint.relevance_floor > 0.88) {
+                    continue;
+                }
+                auto [it, inserted] = hint_floors.try_emplace(hint.command, hint.relevance_floor);
+                if (!inserted) {
+                    it->second = std::max(it->second, hint.relevance_floor);
+                    continue;
+                }
+                validated_names.push_back(hint.command);
+            }
+
+            if (!validated_names.empty()) {
+                for (const auto* source : active_sources) {
+                    const auto stage_started = Clock::now();
+                    auto inspected = source->inspect_commands(requested_query, validated_names);
+                    const std::size_t inspected_count = inspected.size();
+                    record_stage(
+                        std::string("source:") + std::string(source->diagnostic_name()) + "-hint-inspect",
+                        stage_started,
+                        inspected_count
+                    );
+                    for (auto& candidate : inspected) {
+                        // A buggy/over-broad source may not smuggle unrelated
+                        // candidates through the hint seam. The external relevance
+                        // floor is attached only after ordinary source substantiation.
+                        const auto allowed = hint_floors.find(candidate.command);
+                        if (candidate.command.empty() || candidate.source.empty() ||
+                            allowed == hint_floors.end()) {
+                            continue;
+                        }
+                        candidate.retrieval_relevance_floor = std::max(
+                            candidate.retrieval_relevance_floor, allowed->second
+                        );
+                        auto [it, inserted] = merged.try_emplace(candidate.command, candidate);
+                        if (!inserted) {
+                            merge_candidate(it->second, std::move(candidate));
+                        }
+                    }
                 }
             }
         }
@@ -517,6 +608,101 @@ SearchResult SearchEngine::search(
         }
     };
 
+    const auto attach_actionable_answer = [&]() {
+        result.actionable_answer.reset();
+        if (result.candidates.empty() || !AnswerComposer::may_compose(query)) {
+            return;
+        }
+
+        const Candidate& candidate = result.candidates.front();
+        CommandGrammar merged_grammar;
+        std::vector<const CommandSyntaxProvider*> active_providers;
+
+        // Syntax providers are authority-ordered by registration. Gather every
+        // available root grammar before composition so non-overlapping facts
+        // can complement one another without letting a lower-priority source
+        // overwrite an earlier conflicting fact.
+        for (const auto& provider : syntax_providers_) {
+            if (!provider) {
+                continue;
+            }
+
+            const auto stage_started = Clock::now();
+            if (!provider->available()) {
+                record_stage(
+                    std::string("syntax:") + std::string(provider->diagnostic_name()),
+                    stage_started,
+                    0
+                );
+                continue;
+            }
+
+            active_providers.push_back(provider.get());
+            auto grammar = provider->grammar(candidate);
+            const std::size_t item_count = grammar
+                ? grammar->global_options.size() + grammar->subcommands.size() + grammar->synopsis.size()
+                : 0;
+            record_stage(
+                std::string("syntax:") + std::string(provider->diagnostic_name()),
+                stage_started,
+                item_count
+            );
+            if (grammar) {
+                merge_command_grammar(merged_grammar, *grammar);
+            }
+        }
+
+        if (merged_grammar.command.empty()) {
+            return;
+        }
+
+        const auto compose_started = Clock::now();
+        const auto child_resolver = [&](const SubcommandSpec& subcommand)
+            -> std::optional<SubcommandSpec> {
+            std::optional<SubcommandSpec> merged_child;
+            for (const auto* provider : active_providers) {
+                const auto child_started = Clock::now();
+                auto child = provider->subcommand_grammar(candidate, subcommand);
+                const std::size_t child_items = child
+                    ? child->options.size() + child->positionals.size() + child->synopsis.size()
+                    : 0;
+                record_stage(
+                    std::string("syntax:") + std::string(provider->diagnostic_name()) + "-child",
+                    child_started,
+                    child_items
+                );
+                if (!child) {
+                    continue;
+                }
+                if (!merged_child) {
+                    merged_child = std::move(*child);
+                } else {
+                    merge_subcommand_grammar(*merged_child, *child);
+                }
+            }
+            return merged_child;
+        };
+
+        auto answer = AnswerComposer::compose(query, candidate, merged_grammar, child_resolver);
+        record_stage("answer-compose", compose_started, answer ? 1 : 0);
+        if (!answer) {
+            return;
+        }
+
+        // An implicit Operation is intentionally syntax-agnostic until verified
+        // grammar resolves it. Expose the resolved species to machine clients
+        // only after the answer has proved one.
+        if (result.action_target &&
+            result.action_target->kind == ActionTargetKind::Operation) {
+            if (!answer->relevant_options.empty() && answer->relevant_subcommands.empty()) {
+                result.action_target->kind = ActionTargetKind::Option;
+            } else if (answer->relevant_options.empty() && !answer->relevant_subcommands.empty()) {
+                result.action_target->kind = ActionTargetKind::Subcommand;
+            }
+        }
+        result.actionable_answer = std::move(*answer);
+    };
+
     const auto resolve_target = [&](const std::string& target) -> std::optional<Candidate> {
         Query target_query = Query::parse(target);
         target_query.explain_ranking = explain_ranking;
@@ -548,6 +734,21 @@ SearchResult SearchEngine::search(
         record_stage("confidence", stage_started, result.candidates.size());
     };
 
+    // Direct syntax questions are entity-first regardless of their surrounding
+    // wording. The action-target parser identifies the parent command without
+    // changing generic retrieval/ranking; exact resolution is attempted only for
+    // this dedicated post-M9 query class and falls back normally if it fails.
+    if (query.action_target && query.action_target->command) {
+        if (auto resolved = resolve_target(*query.action_target->command)) {
+            result.candidates.push_back(std::move(*resolved));
+            attach_guidance(1);
+            attach_actionable_answer();
+            attach_confidence();
+            finish_timing();
+            return result;
+        }
+    }
+
     // Explain and Compare are entity-first frames. Resolve the named thing(s)
     // before searching the prose around them; otherwise English scaffolding such
     // as "difference" can become a literal command-search term.
@@ -555,6 +756,7 @@ SearchResult SearchEngine::search(
         if (auto resolved = resolve_target(query.targets.front())) {
             result.candidates.push_back(std::move(*resolved));
             attach_guidance(1);
+            attach_actionable_answer();
             attach_confidence();
             finish_timing();
             return result;
@@ -569,6 +771,7 @@ SearchResult SearchEngine::search(
         }
         if (result.candidates.size() >= 2) {
             attach_guidance(result.candidates.size());
+            attach_actionable_answer();
             attach_confidence();
             finish_timing();
             return result;
@@ -576,7 +779,7 @@ SearchResult SearchEngine::search(
         result.candidates.clear();
     }
 
-    result.candidates = collect(query);
+    result.candidates = collect(query, true);
 
     // Diagnose/Locate often name the affected tool explicitly. Preserve generic
     // retrieval, but promote the resolved entity so `why is ssh ...` talks about
@@ -639,6 +842,7 @@ SearchResult SearchEngine::search(
     // Guidance is post-ranking and bounded to the best match. It must never
     // affect recall, ranking, confidence, or the v0.1 regression contract.
     attach_guidance(1);
+    attach_actionable_answer();
     attach_confidence();
     finish_timing();
     return result;

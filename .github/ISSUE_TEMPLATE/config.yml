@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/kzahed610/Acclorite/security/advisories/new
+    about: Please report security-sensitive issues privately when possible.

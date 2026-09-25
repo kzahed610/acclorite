@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "name": "acclorite-m11-research-v1",
+  "description": "Milestone-11 research corpus for semantically clear but lexically distant Linux tool-discovery tasks. This is an exploratory measurement surface, not a frozen regression gate. It intentionally targets gaps that M10 may fail and must remain separate from the frozen M10 corpora.",
+  "cases": [
+    {
+      "id": "recent-files-by-time",
+      "query": "show me files that changed since yesterday",
+      "tags": ["m11", "semantic-distance", "files", "time"],
+      "expect": {"top1_any": ["find", "fd", "fdfind"], "top3_any": ["find", "fd", "fdfind"]}
+    },
+    {
+      "id": "repeat-command-periodically",
+      "query": "keep running the same command every two seconds so i can watch it change",
+      "tags": ["m11", "semantic-distance", "process", "monitoring"],
+      "expect": {"top1_any": ["watch"], "top3_any": ["watch"]}
+    },
+    {
+      "id": "pid-from-process-name",
+      "query": "i know the process name but need its pid",
+      "tags": ["m11", "semantic-distance", "process"],
+      "expect": {"top1_any": ["pgrep", "pidof"], "top3_any": ["pgrep", "pidof"]}
+    },
+    {
+      "id": "shared-library-dependencies",
+      "query": "what shared libraries does this executable need at runtime",
+      "tags": ["m11", "semantic-distance", "binary", "inspect"],
+      "expect": {"top1_any": ["ldd"], "top3_any": ["ldd"]}
+    },
+    {
+      "id": "detect-file-type-by-content",
+      "query": "tell me what kind of file this really is without trusting its extension",
+      "tags": ["m11", "semantic-distance", "files", "inspect"],
+      "expect": {"top1_any": ["file"], "top3_any": ["file"]}
+    },
+    {
+      "id": "split-large-file",
+      "query": "break one huge file into 100 MB pieces",
+      "tags": ["m11", "semantic-distance", "files", "transform"],
+      "expect": {"top1_any": ["split"], "top3_any": ["split"]}
+    },
+    {
+      "id": "second-column-text",
+      "query": "print only the second column from whitespace separated text",
+      "tags": ["m11", "semantic-distance", "text"],
+      "expect": {"top1_any": ["awk", "cut"], "top3_any": ["awk", "cut"]}
+    },
+    {
+      "id": "stdin-one-command-per-line",
+      "query": "run a command once for every line that comes from stdin",
+      "tags": ["m11", "semantic-distance", "text", "process"],
+      "expect": {"top1_any": ["xargs", "parallel"], "top3_any": ["xargs", "parallel"]}
+    },
+    {
+      "id": "remove-adjacent-duplicates",
+      "query": "remove repeated neighboring lines from already sorted text",
+      "tags": ["m11", "semantic-distance", "text"],
+      "expect": {"top1_any": ["uniq"], "top3_any": ["uniq"]}
+    },
+    {
+      "id": "epoch-to-readable-date",
+      "query": "turn unix epoch seconds into a normal human readable date",
+      "tags": ["m11", "semantic-distance", "time", "conversion"],
+      "expect": {"top1_any": ["date"], "top3_any": ["date"]}
+    },
+    {
+      "id": "survive-terminal-close",
+      "query": "keep this command running after i close the terminal",
+      "tags": ["m11", "semantic-distance", "process", "session"],
+      "expect": {"top1_any": ["nohup", "tmux", "screen"], "top3_any": ["nohup", "tmux", "screen"]}
+    },
+    {
+      "id": "count-file-lines",
+      "query": "count how many lines are in this file",
+      "tags": ["m11", "semantic-distance", "text", "files"],
+      "expect": {"top1_any": ["wc"], "top3_any": ["wc"]}
+    },
+    {
+      "id": "first-lines-only",
+      "query": "show me only the first twenty lines of a file",
+      "tags": ["m11", "semantic-distance", "text", "files"],
+      "expect": {"top1_any": ["head"], "top3_any": ["head"]}
+    },
+    {
+      "id": "follow-growing-log",
+      "query": "keep printing new lines as they get appended to this log",
+      "tags": ["m11", "semantic-distance", "text", "monitoring"],
+      "expect": {"top1_any": ["tail"], "top3_any": ["tail"]}
+    },
+    {
+      "id": "readable-strings-from-binary",
+      "query": "pull human readable text fragments out of a binary file",
+      "tags": ["m11", "semantic-distance", "binary", "inspect"],
+      "expect": {"top1_any": ["strings"], "top3_any": ["strings"]}
+    },
+    {
+      "id": "inspect-file-as-hex",
+      "query": "inspect the raw bytes of a file in hexadecimal",
+      "tags": ["m11", "semantic-distance", "binary", "inspect"],
+      "expect": {"top1_any": ["hexdump", "xxd", "od"], "top3_any": ["hexdump", "xxd", "od"]}
+    },
+    {
+      "id": "owner-read-write-only",
+      "query": "make a file readable and writable only by its owner",
+      "tags": ["m11", "semantic-distance", "permissions", "modify"],
+      "expect": {"top1_any": ["chmod"], "top3_any": ["chmod"]}
+    },
+    {
+      "id": "change-file-owner",
+      "query": "change which user owns this file",
+      "tags": ["m11", "semantic-distance", "permissions", "modify"],
+      "expect": {"top1_any": ["chown"], "top3_any": ["chown"]}
+    },
+    {
+      "id": "create-symbolic-link",
+      "query": "make another path point to this file without copying the contents",
+      "tags": ["m11", "semantic-distance", "files", "link"],
+      "expect": {"top1_any": ["ln"], "top3_any": ["ln"]}
+    },
+    {
+      "id": "mounted-filesystem-free-space",
+      "query": "show how much free space is left on each mounted filesystem",
+      "tags": ["m11", "semantic-distance", "storage", "inspect"],
+      "expect": {"top1_any": ["df", "duf"], "top3_any": ["df", "duf"]}
+    },
+    {
+      "id": "mount-hierarchy",
+      "query": "show the filesystem mount hierarchy and where everything is mounted",
+      "tags": ["m11", "semantic-distance", "storage", "mounts"],
+      "expect": {"top1_any": ["findmnt", "mount"], "top3_any": ["findmnt", "mount"]}
+    },
+    {
+      "id": "block-device-tree",
+      "query": "show disks and partitions as a parent child tree",
+      "tags": ["m11", "semantic-distance", "storage", "devices"],
+      "expect": {"top1_any": ["lsblk"], "top3_any": ["lsblk"]}
+    },
+    {
+      "id": "process-open-files",
+      "query": "show which files a running process currently has open",
+      "tags": ["m11", "semantic-distance", "process", "files", "inspect"],
+      "expect": {"top1_any": ["lsof", "fuser"], "top3_any": ["lsof", "fuser"]}
+    },
+    {
+      "id": "process-parent-child-tree",
+      "query": "show running processes arranged by who spawned whom",
+      "tags": ["m11", "semantic-distance", "process", "tree"],
+      "expect": {"top1_any": ["pstree", "ps"], "top3_any": ["pstree", "ps"]}
+    },
+    {
+      "id": "content-fingerprint",
+      "query": "make a fingerprint of this file so i can tell later if its contents changed",
+      "tags": ["m11", "semantic-distance", "files", "checksum"],
+      "expect": {"top1_any": ["sha256sum", "b2sum", "cksum", "md5sum"], "top3_any": ["sha256sum", "b2sum", "cksum", "md5sum"]}
+    },
+    {
+      "id": "numeric-line-sort",
+      "query": "order these lines by their numeric value instead of alphabetically",
+      "tags": ["m11", "semantic-distance", "text", "sort"],
+      "expect": {"top1_any": ["sort"], "top3_any": ["sort"]}
+    }
+  ]
+}

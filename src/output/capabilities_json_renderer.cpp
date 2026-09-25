@@ -57,10 +57,16 @@ void CapabilitiesJsonRenderer::render(
     out << "  },\n";
     out << "  \"integrations\": {\n";
     out << "    \"manual_guidance\": "; boolean(out, report.manual_guidance); out << ",\n";
+    out << "    \"manual_syntax\": "; boolean(out, report.manual_syntax); out << ",\n";
+    out << "    \"fish_completion_syntax\": "; boolean(out, report.fish_completion_syntax); out << ",\n";
     out << "    \"info_guidance\": "; boolean(out, report.info_guidance); out << ",\n";
     out << "    \"tldr_cache\": "; boolean(out, report.tldr_cache); out << ",\n";
     out << "    \"curated_guidance\": "; boolean(out, report.curated_guidance); out << ",\n";
     out << "    \"arch_packages\": "; boolean(out, report.arch_packages); out << ",\n";
+    out << "    \"apt_packages\": "; boolean(out, report.apt_packages); out << ",\n";
+    out << "    \"dnf_packages\": "; boolean(out, report.dnf_packages); out << ",\n";
+    out << "    \"zypper_packages\": "; boolean(out, report.zypper_packages); out << ",\n";
+    out << "    \"xbps_packages\": "; boolean(out, report.xbps_packages); out << ",\n";
     out << "    \"pkgfile\": "; boolean(out, report.pkgfile); out << '\n';
     out << "  },\n";
     out << "  \"exit_codes\": {\n";

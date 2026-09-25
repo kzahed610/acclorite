@@ -46,6 +46,11 @@ struct Candidate {
     // Strongest command-specific semantic intent fit before source confidence,
     // installation friction, common-tool priors, or other recommendation preferences.
     double semantic_fit{0.0};
+    // Optional bounded relevance floor supplied by an auxiliary recall mechanism
+    // after an ordinary KnowledgeSource has independently substantiated this
+    // command identity. This is query-relative relevance support only: it is not
+    // provenance and must never establish syntax, safety, or executable authority.
+    double retrieval_relevance_floor{0.0};
     // Query-relative ordering cache. Computing specialization constraints can be
     // comparatively expensive because it inspects merged descriptive evidence.
     // SearchEngine populates these once per ranking phase so std::sort compares

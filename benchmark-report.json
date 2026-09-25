@@ -1,8 +1,8 @@
 {
   "benchmark_report_schema": 3,
-  "generated_at": "2026-09-06T10:48:15.720551+00:00",
+  "generated_at": "2026-09-12T13:09:43.362048+00:00",
   "binary": "/home/zahed/acclorite/build/acclorite",
-  "acclorite_version": "acclorite 0.2.6",
+  "acclorite_version": "acclorite 0.3.3",
   "corpus": "/home/zahed/acclorite/benchmarks/corpus-v1.json",
   "corpus_schema_version": 1,
   "corpus_name": "acclorite-core-arch-v1",
@@ -37,100 +37,128 @@
       "total": 6,
       "rate": 1.0
     },
+    "action_target": {
+      "passed": 0,
+      "total": 0,
+      "rate": 0.0
+    },
+    "actionable": {
+      "passed": 0,
+      "total": 0,
+      "rate": 0.0
+    },
     "latency_ms": {
-      "median": 535.1687670008687,
-      "p95": 1574.2415838009035,
-      "max": 3805.780656999559
+      "median": 111.46792500221636,
+      "p95": 222.35100579782738,
+      "max": 271.2729259983462
     },
     "profiled_search_ms": {
-      "median": 510.591,
-      "p95": 1562.7026,
-      "max": 3789.413
+      "median": 107.192,
+      "p95": 216.039,
+      "max": 264.951
     },
     "stage_timings_ms": {
+      "answer-compose": {
+        "samples": 1,
+        "median": 0.052,
+        "p95": 0.052,
+        "max": 0.052
+      },
       "confidence": {
         "samples": 25,
-        "median": 0.971,
-        "p95": 6.865399999999995,
-        "max": 18.453
+        "median": 0.072,
+        "p95": 0.24299999999999994,
+        "max": 0.612
       },
       "enricher:pkgfile": {
         "samples": 25,
-        "median": 53.053,
-        "p95": 109.80099999999999,
-        "max": 137.387
+        "median": 37.097,
+        "p95": 54.77299999999999,
+        "max": 66.019
       },
       "guidance:curated": {
         "samples": 25,
-        "median": 0.011,
-        "p95": 0.018599999999999995,
-        "max": 0.029
+        "median": 0.002,
+        "p95": 0.014999999999999986,
+        "max": 0.018
       },
       "guidance:info": {
         "samples": 25,
-        "median": 2.597,
-        "p95": 22.15659999999996,
-        "max": 26.283
+        "median": 0.28,
+        "p95": 8.69339999999999,
+        "max": 17.838
       },
       "guidance:man": {
         "samples": 25,
-        "median": 125.249,
-        "p95": 296.3112,
-        "max": 319.467
+        "median": 58.993,
+        "p95": 121.46399999999998,
+        "max": 151.74200000000002
       },
       "guidance:tldr": {
         "samples": 25,
-        "median": 0.896,
-        "p95": 2.892999999999999,
-        "max": 3.2569999999999997
+        "median": 0.443,
+        "p95": 4.442199999999998,
+        "max": 6.208
       },
       "location-source": {
         "samples": 1,
-        "median": 0.166,
-        "p95": 0.166,
-        "max": 0.166
+        "median": 0.315,
+        "p95": 0.315,
+        "max": 0.315
       },
       "ranking-finalize": {
         "samples": 25,
-        "median": 34.978,
-        "p95": 510.2237999999993,
-        "max": 1323.12
+        "median": 1.96,
+        "p95": 10.404999999999994,
+        "max": 31.78
       },
       "ranking-preferences": {
         "samples": 25,
-        "median": 32.43,
-        "p95": 506.5859999999993,
-        "max": 1316.889
+        "median": 1.835,
+        "p95": 10.165999999999997,
+        "max": 31.365
       },
       "ranking-prefilter": {
         "samples": 25,
-        "median": 31.126,
-        "p95": 480.2169999999993,
-        "max": 959.299
+        "median": 1.805,
+        "p95": 13.204999999999986,
+        "max": 28.949
       },
       "ranking-remerge": {
         "samples": 25,
-        "median": 0.484,
-        "p95": 0.8593999999999999,
-        "max": 1.032
+        "median": 0.055,
+        "p95": 0.27619999999999967,
+        "max": 0.393
       },
       "ranking-sort": {
         "samples": 25,
-        "median": 2.422,
-        "p95": 4.6549999999999985,
-        "max": 5.625
+        "median": 0.072,
+        "p95": 0.12599999999999997,
+        "max": 0.186
       },
       "source:arch-packages": {
         "samples": 25,
-        "median": 32.838,
-        "p95": 538.1903999999996,
-        "max": 713.279
+        "median": 2.412,
+        "p95": 17.852199999999968,
+        "max": 28.149
       },
       "source:index": {
         "samples": 25,
-        "median": 184.35,
-        "p95": 339.97339999999974,
-        "max": 380.622
+        "median": 5.159,
+        "p95": 8.047799999999999,
+        "max": 8.307
+      },
+      "syntax:fish-completion": {
+        "samples": 1,
+        "median": 0.715,
+        "p95": 0.715,
+        "max": 0.715
+      },
+      "syntax:man": {
+        "samples": 1,
+        "median": 95.238,
+        "p95": 95.238,
+        "max": 95.238
       }
     }
   },
@@ -143,7 +171,7 @@
         "search"
       ],
       "return_code": 0,
-      "latency_ms": 629.037957998662,
+      "latency_ms": 145.79226599744288,
       "top1": "rg",
       "top3": [
         "rg",
@@ -153,21 +181,21 @@
       "ambiguity": "clear",
       "confidence": 0.8057,
       "frame": "Discover",
-      "search_ms": 614.854,
+      "search_ms": 140.848,
       "stage_timings": {
-        "source:index": 191.633,
-        "source:arch-packages": 37.246,
-        "ranking-prefilter": 27.604,
-        "enricher:pkgfile": 97.051,
-        "ranking-remerge": 0.518,
-        "ranking-preferences": 30.998,
-        "ranking-sort": 2.782,
-        "ranking-finalize": 34.304,
-        "guidance:man": 218.999,
-        "guidance:info": 3.611,
-        "guidance:tldr": 0.779,
-        "guidance:curated": 0.015,
-        "confidence": 0.85
+        "source:index": 5.272,
+        "source:arch-packages": 1.974,
+        "ranking-prefilter": 1.752,
+        "enricher:pkgfile": 24.858,
+        "ranking-remerge": 0.078,
+        "ranking-preferences": 2.926,
+        "ranking-sort": 0.129,
+        "ranking-finalize": 3.133,
+        "guidance:man": 102.485,
+        "guidance:info": 0.59,
+        "guidance:tldr": 0.237,
+        "guidance:curated": 0.018,
+        "confidence": 0.223
       },
       "forensics": null,
       "error": "",
@@ -209,7 +237,7 @@
         "search"
       ],
       "return_code": 0,
-      "latency_ms": 3805.780656999559,
+      "latency_ms": 221.3719969986414,
       "top1": "rg",
       "top3": [
         "rg",
@@ -219,21 +247,21 @@
       "ambiguity": "low-confidence",
       "confidence": 0.58,
       "frame": "Discover",
-      "search_ms": 3789.413,
+      "search_ms": 216.702,
       "stage_timings": {
-        "source:index": 380.622,
-        "source:arch-packages": 713.279,
-        "ranking-prefilter": 959.299,
-        "enricher:pkgfile": 98.489,
-        "ranking-remerge": 0.595,
-        "ranking-preferences": 1316.889,
-        "ranking-sort": 5.625,
-        "ranking-finalize": 1323.12,
-        "guidance:man": 286.192,
-        "guidance:info": 3.796,
-        "guidance:tldr": 0.828,
-        "guidance:curated": 0.019,
-        "confidence": 18.453
+        "source:index": 8.089,
+        "source:arch-packages": 28.149,
+        "ranking-prefilter": 28.949,
+        "enricher:pkgfile": 43.985,
+        "ranking-remerge": 0.298,
+        "ranking-preferences": 31.365,
+        "ranking-sort": 0.114,
+        "ranking-finalize": 31.78,
+        "guidance:man": 74.092,
+        "guidance:info": 0.322,
+        "guidance:tldr": 0.08,
+        "guidance:curated": 0.002,
+        "confidence": 0.612
       },
       "forensics": null,
       "error": "",
@@ -280,7 +308,7 @@
         "specialization"
       ],
       "return_code": 0,
-      "latency_ms": 535.1687670008687,
+      "latency_ms": 59.33597699913662,
       "top1": "pdfgrep",
       "top3": [
         "pdfgrep",
@@ -290,21 +318,21 @@
       "ambiguity": "clear",
       "confidence": 0.8974,
       "frame": "Discover",
-      "search_ms": 509.6,
+      "search_ms": 54.987,
       "stage_timings": {
-        "source:index": 222.719,
-        "source:arch-packages": 46.625,
-        "ranking-prefilter": 61.093,
-        "enricher:pkgfile": 108.819,
-        "ranking-remerge": 0.866,
-        "ranking-preferences": 56.543,
-        "ranking-sort": 4.741,
-        "ranking-finalize": 62.163,
-        "guidance:man": 0.218,
-        "guidance:info": 0.168,
-        "guidance:tldr": 1.473,
-        "guidance:curated": 0.017,
-        "confidence": 1.815
+        "source:index": 4.839,
+        "source:arch-packages": 2.025,
+        "ranking-prefilter": 2.447,
+        "enricher:pkgfile": 42.006,
+        "ranking-remerge": 0.059,
+        "ranking-preferences": 2.311,
+        "ranking-sort": 0.076,
+        "ranking-finalize": 2.447,
+        "guidance:man": 0.094,
+        "guidance:info": 0.024,
+        "guidance:tldr": 0.768,
+        "guidance:curated": 0.003,
+        "confidence": 0.079
       },
       "forensics": null,
       "error": "",
@@ -352,7 +380,7 @@
         "search"
       ],
       "return_code": 0,
-      "latency_ms": 1251.4599239984818,
+      "latency_ms": 86.21192799910204,
       "top1": "zipgrep",
       "top3": [
         "zipgrep",
@@ -362,21 +390,21 @@
       "ambiguity": "clear",
       "confidence": 0.7993,
       "frame": "Discover",
-      "search_ms": 1233.059,
+      "search_ms": 82.368,
       "stage_timings": {
-        "source:index": 358.979,
-        "source:arch-packages": 565.381,
-        "ranking-prefilter": 78.605,
-        "enricher:pkgfile": 1.483,
-        "ranking-remerge": 1.032,
-        "ranking-preferences": 81.851,
-        "ranking-sort": 4.311,
-        "ranking-finalize": 87.208,
-        "guidance:man": 130.648,
-        "guidance:info": 2.741,
-        "guidance:tldr": 1.635,
-        "guidance:curated": 0.008,
-        "confidence": 2.267
+        "source:index": 5.535,
+        "source:arch-packages": 20.221,
+        "ranking-prefilter": 3.142,
+        "enricher:pkgfile": 0.267,
+        "ranking-remerge": 0.063,
+        "ranking-preferences": 2.767,
+        "ranking-sort": 0.091,
+        "ranking-finalize": 2.922,
+        "guidance:man": 48.983,
+        "guidance:info": 0.301,
+        "guidance:tldr": 0.677,
+        "guidance:curated": 0.001,
+        "confidence": 0.075
       },
       "forensics": null,
       "error": "",
@@ -420,7 +448,7 @@
         "specialization"
       ],
       "return_code": 0,
-      "latency_ms": 854.0921319981862,
+      "latency_ms": 57.76793399854796,
       "top1": "recoll",
       "top3": [
         "recoll",
@@ -428,23 +456,23 @@
         "python-whoosh"
       ],
       "ambiguity": "clear",
-      "confidence": 0.8921,
+      "confidence": 0.869,
       "frame": "Discover",
-      "search_ms": 840.169,
+      "search_ms": 53.849,
       "stage_timings": {
-        "source:index": 220.34,
-        "source:arch-packages": 35.362,
-        "ranking-prefilter": 232.697,
-        "enricher:pkgfile": 109.82,
-        "ranking-remerge": 0.484,
-        "ranking-preferences": 228.727,
-        "ranking-sort": 2.667,
-        "ranking-finalize": 231.885,
-        "guidance:man": 0.144,
-        "guidance:info": 0.097,
-        "guidance:tldr": 0.889,
-        "guidance:curated": 0.006,
-        "confidence": 5.519
+        "source:index": 4.939,
+        "source:arch-packages": 2.597,
+        "ranking-prefilter": 2.719,
+        "enricher:pkgfile": 40.556,
+        "ranking-remerge": 0.055,
+        "ranking-preferences": 2.236,
+        "ranking-sort": 0.084,
+        "ranking-finalize": 2.377,
+        "guidance:man": 0.038,
+        "guidance:info": 0.019,
+        "guidance:tldr": 0.286,
+        "guidance:curated": 0.002,
+        "confidence": 0.067
       },
       "forensics": null,
       "error": "",
@@ -490,7 +518,7 @@
         "files"
       ],
       "return_code": 0,
-      "latency_ms": 292.8486429991608,
+      "latency_ms": 37.21817000041483,
       "top1": "fdupes",
       "top3": [
         "fdupes",
@@ -500,21 +528,21 @@
       "ambiguity": "competitive",
       "confidence": 0.7474,
       "frame": "Discover",
-      "search_ms": 279.802,
+      "search_ms": 30.767,
       "stage_timings": {
-        "source:index": 154.294,
-        "source:arch-packages": 19.096,
-        "ranking-prefilter": 22.571,
-        "enricher:pkgfile": 53.053,
-        "ranking-remerge": 0.468,
-        "ranking-preferences": 23.424,
-        "ranking-sort": 2.16,
-        "ranking-finalize": 26.059,
-        "guidance:man": 0.141,
-        "guidance:info": 0.096,
-        "guidance:tldr": 1.123,
-        "guidance:curated": 0.011,
-        "confidence": 0.971
+        "source:index": 3.887,
+        "source:arch-packages": 2.499,
+        "ranking-prefilter": 1.204,
+        "enricher:pkgfile": 20.372,
+        "ranking-remerge": 0.042,
+        "ranking-preferences": 1.236,
+        "ranking-sort": 0.076,
+        "ranking-finalize": 1.356,
+        "guidance:man": 0.084,
+        "guidance:info": 0.033,
+        "guidance:tldr": 0.916,
+        "guidance:curated": 0.016,
+        "confidence": 0.093
       },
       "forensics": null,
       "error": "",
@@ -570,7 +598,7 @@
         "files"
       ],
       "return_code": 0,
-      "latency_ms": 302.89527800050564,
+      "latency_ms": 26.66383599716937,
       "top1": "rdfind",
       "top3": [
         "rdfind",
@@ -580,21 +608,21 @@
       "ambiguity": "clear",
       "confidence": 0.8693,
       "frame": "Discover",
-      "search_ms": 289.258,
+      "search_ms": 21.982,
       "stage_timings": {
-        "source:index": 183.28,
-        "source:arch-packages": 13.947,
-        "ranking-prefilter": 27.318,
-        "enricher:pkgfile": 28.498,
-        "ranking-remerge": 0.501,
-        "ranking-preferences": 28.673,
-        "ranking-sort": 2.472,
-        "ranking-finalize": 31.652,
-        "guidance:man": 0.139,
-        "guidance:info": 0.105,
-        "guidance:tldr": 0.893,
-        "guidance:curated": 0.01,
-        "confidence": 1.019
+        "source:index": 4.786,
+        "source:arch-packages": 0.925,
+        "ranking-prefilter": 1.558,
+        "enricher:pkgfile": 12.267,
+        "ranking-remerge": 0.047,
+        "ranking-preferences": 1.601,
+        "ranking-sort": 0.065,
+        "ranking-finalize": 1.713,
+        "guidance:man": 0.033,
+        "guidance:info": 0.021,
+        "guidance:tldr": 0.423,
+        "guidance:curated": 0.002,
+        "confidence": 0.058
       },
       "forensics": null,
       "error": "",
@@ -635,31 +663,31 @@
         "storage"
       ],
       "return_code": 0,
-      "latency_ms": 569.1432450003049,
+      "latency_ms": 132.4216070024704,
       "top1": "duf",
       "top3": [
         "duf",
-        "btop",
-        "ncdu"
+        "ncdu",
+        "btop"
       ],
-      "ambiguity": "clear",
-      "confidence": 0.8574,
+      "ambiguity": "competitive",
+      "confidence": 0.7497,
       "frame": "Discover",
-      "search_ms": 555.208,
+      "search_ms": 127.75,
       "stage_timings": {
-        "source:index": 172.479,
-        "source:arch-packages": 48.068,
-        "ranking-prefilter": 22.815,
-        "enricher:pkgfile": 137.387,
-        "ranking-remerge": 0.833,
-        "ranking-preferences": 33.875,
-        "ranking-sort": 2.491,
-        "ranking-finalize": 37.207,
-        "guidance:man": 129.531,
-        "guidance:info": 2.914,
-        "guidance:tldr": 1.266,
-        "guidance:curated": 0.013,
-        "confidence": 0.789
+        "source:index": 5.291,
+        "source:arch-packages": 5.068,
+        "ranking-prefilter": 1.561,
+        "enricher:pkgfile": 55.553,
+        "ranking-remerge": 0.068,
+        "ranking-preferences": 1.545,
+        "ranking-sort": 0.072,
+        "ranking-finalize": 1.686,
+        "guidance:man": 55.456,
+        "guidance:info": 0.265,
+        "guidance:tldr": 2.582,
+        "guidance:curated": 0.003,
+        "confidence": 0.069
       },
       "forensics": null,
       "error": "",
@@ -691,8 +719,8 @@
           ],
           "actual": [
             "duf",
-            "btop",
-            "ncdu"
+            "ncdu",
+            "btop"
           ]
         }
       ]
@@ -705,31 +733,31 @@
         "human"
       ],
       "return_code": 0,
-      "latency_ms": 523.8901490010903,
+      "latency_ms": 111.46792500221636,
       "top1": "duf",
       "top3": [
         "duf",
-        "df",
-        "btop"
+        "ncdu",
+        "df"
       ],
-      "ambiguity": "clear",
-      "confidence": 0.8673,
+      "ambiguity": "competitive",
+      "confidence": 0.7759,
       "frame": "Inspect",
-      "search_ms": 510.591,
+      "search_ms": 107.192,
       "stage_timings": {
-        "source:index": 183.871,
-        "source:arch-packages": 47.991,
-        "ranking-prefilter": 37.44,
-        "enricher:pkgfile": 80.277,
-        "ranking-remerge": 0.417,
-        "ranking-preferences": 37.226,
-        "ranking-sort": 2.25,
-        "ranking-finalize": 39.899,
-        "guidance:man": 114.317,
-        "guidance:info": 2.886,
-        "guidance:tldr": 0.371,
-        "guidance:curated": 0.011,
-        "confidence": 0.971
+        "source:index": 6.406,
+        "source:arch-packages": 2.509,
+        "ranking-prefilter": 2.225,
+        "enricher:pkgfile": 39.347,
+        "ranking-remerge": 0.189,
+        "ranking-preferences": 2.466,
+        "ranking-sort": 0.071,
+        "ranking-finalize": 2.728,
+        "guidance:man": 53.245,
+        "guidance:info": 0.257,
+        "guidance:tldr": 0.06,
+        "guidance:curated": 0.002,
+        "confidence": 0.073
       },
       "forensics": null,
       "error": "",
@@ -763,8 +791,8 @@
           ],
           "actual": [
             "duf",
-            "df",
-            "btop"
+            "ncdu",
+            "df"
           ]
         }
       ]
@@ -776,7 +804,7 @@
         "network"
       ],
       "return_code": 0,
-      "latency_ms": 621.227491999889,
+      "latency_ms": 120.24575500254286,
       "top1": "ss",
       "top3": [
         "ss",
@@ -786,21 +814,21 @@
       "ambiguity": "clear",
       "confidence": 0.8689,
       "frame": "Inspect",
-      "search_ms": 608.447,
+      "search_ms": 116.449,
       "stage_timings": {
-        "source:index": 217.86,
-        "source:arch-packages": 97.815,
-        "ranking-prefilter": 31.126,
-        "enricher:pkgfile": 66.131,
-        "ranking-remerge": 0.579,
-        "ranking-preferences": 34.159,
-        "ranking-sort": 3.271,
-        "ranking-finalize": 38.018,
-        "guidance:man": 148.077,
-        "guidance:info": 2.548,
-        "guidance:tldr": 2.975,
-        "guidance:curated": 0.011,
-        "confidence": 0.68
+        "source:index": 4.356,
+        "source:arch-packages": 8.097,
+        "ranking-prefilter": 1.805,
+        "enricher:pkgfile": 37.097,
+        "ranking-remerge": 0.055,
+        "ranking-preferences": 1.71,
+        "ranking-sort": 0.079,
+        "ranking-finalize": 1.844,
+        "guidance:man": 61.749,
+        "guidance:info": 0.288,
+        "guidance:tldr": 0.935,
+        "guidance:curated": 0.002,
+        "confidence": 0.051
       },
       "forensics": null,
       "error": "",
@@ -835,7 +863,7 @@
         "network"
       ],
       "return_code": 0,
-      "latency_ms": 848.0973149999045,
+      "latency_ms": 98.39567000017269,
       "top1": "ss",
       "top3": [
         "ss",
@@ -845,21 +873,21 @@
       "ambiguity": "low-confidence",
       "confidence": 0.58,
       "frame": "Inspect",
-      "search_ms": 835.699,
+      "search_ms": 94.413,
       "stage_timings": {
-        "source:index": 244.777,
-        "source:arch-packages": 12.574,
-        "ranking-prefilter": 188.898,
-        "enricher:pkgfile": 12.488,
-        "ranking-remerge": 0.485,
-        "ranking-preferences": 205.03,
-        "ranking-sort": 2.422,
-        "ranking-finalize": 207.944,
-        "guidance:man": 158.165,
-        "guidance:info": 2.956,
-        "guidance:tldr": 0.401,
-        "guidance:curated": 0.029,
-        "confidence": 4.654
+        "source:index": 6.124,
+        "source:arch-packages": 1.746,
+        "ranking-prefilter": 9.125,
+        "enricher:pkgfile": 8.479,
+        "ranking-remerge": 0.062,
+        "ranking-preferences": 8.858,
+        "ranking-sort": 0.072,
+        "ranking-finalize": 8.993,
+        "guidance:man": 59.224,
+        "guidance:info": 0.252,
+        "guidance:tldr": 0.056,
+        "guidance:curated": 0.002,
+        "confidence": 0.182
       },
       "forensics": null,
       "error": "",
@@ -899,7 +927,7 @@
         "inspect"
       ],
       "return_code": 0,
-      "latency_ms": 460.3537549992325,
+      "latency_ms": 72.78165000025183,
       "top1": "fuser",
       "top3": [
         "fuser",
@@ -909,21 +937,21 @@
       "ambiguity": "clear",
       "confidence": 0.8846,
       "frame": "Inspect",
-      "search_ms": 445.858,
+      "search_ms": 68.761,
       "stage_timings": {
-        "source:index": 242.968,
-        "source:arch-packages": 6.853,
-        "ranking-prefilter": 33.79,
-        "enricher:pkgfile": 0.774,
-        "ranking-remerge": 0.362,
-        "ranking-preferences": 32.201,
-        "ranking-sort": 1.86,
-        "ranking-finalize": 34.428,
-        "guidance:man": 119.487,
-        "guidance:info": 2.426,
-        "guidance:tldr": 2.087,
-        "guidance:curated": 0.011,
-        "confidence": 1.052
+        "source:index": 6.76,
+        "source:arch-packages": 2.412,
+        "ranking-prefilter": 1.911,
+        "enricher:pkgfile": 0.216,
+        "ranking-remerge": 0.036,
+        "ranking-preferences": 1.87,
+        "ranking-sort": 0.054,
+        "ranking-finalize": 1.96,
+        "guidance:man": 53.973,
+        "guidance:info": 0.272,
+        "guidance:tldr": 0.434,
+        "guidance:curated": 0.002,
+        "confidence": 0.08
       },
       "forensics": null,
       "error": "",
@@ -968,7 +996,7 @@
         "process"
       ],
       "return_code": 0,
-      "latency_ms": 397.85175399811123,
+      "latency_ms": 104.83130699867615,
       "top1": "btop",
       "top3": [
         "btop",
@@ -978,21 +1006,21 @@
       "ambiguity": "clear",
       "confidence": 0.7763,
       "frame": "Discover",
-      "search_ms": 386.114,
+      "search_ms": 96.694,
       "stage_timings": {
-        "source:index": 113.032,
-        "source:arch-packages": 32.838,
-        "ranking-prefilter": 18.575,
-        "enricher:pkgfile": 78.004,
-        "ranking-remerge": 0.345,
-        "ranking-preferences": 17.39,
-        "ranking-sort": 1.572,
-        "ranking-finalize": 19.313,
-        "guidance:man": 116.545,
-        "guidance:info": 2.587,
-        "guidance:tldr": 2.325,
-        "guidance:curated": 0.011,
-        "confidence": 0.867
+        "source:index": 2.595,
+        "source:arch-packages": 2.193,
+        "ranking-prefilter": 1.006,
+        "enricher:pkgfile": 35.974,
+        "ranking-remerge": 0.04,
+        "ranking-preferences": 0.997,
+        "ranking-sort": 0.045,
+        "ranking-finalize": 1.082,
+        "guidance:man": 48.635,
+        "guidance:info": 0.262,
+        "guidance:tldr": 4.613,
+        "guidance:curated": 0.003,
+        "confidence": 0.099
       },
       "forensics": null,
       "error": "",
@@ -1050,7 +1078,7 @@
         "human"
       ],
       "return_code": 0,
-      "latency_ms": 498.58176100315177,
+      "latency_ms": 96.79261099881842,
       "top1": "btop",
       "top3": [
         "btop",
@@ -1058,23 +1086,23 @@
         "memusage"
       ],
       "ambiguity": "clear",
-      "confidence": 0.8847,
+      "confidence": 0.885,
       "frame": "Inspect",
-      "search_ms": 486.83,
+      "search_ms": 92.873,
       "stage_timings": {
-        "source:index": 211.175,
-        "source:arch-packages": 23.227,
-        "ranking-prefilter": 32.445,
-        "enricher:pkgfile": 66.067,
-        "ranking-remerge": 0.431,
-        "ranking-preferences": 31.237,
-        "ranking-sort": 2.295,
-        "ranking-finalize": 33.969,
-        "guidance:man": 113.727,
-        "guidance:info": 2.641,
-        "guidance:tldr": 0.339,
-        "guidance:curated": 0.011,
-        "confidence": 1.018
+        "source:index": 5.159,
+        "source:arch-packages": 1.337,
+        "ranking-prefilter": 1.933,
+        "enricher:pkgfile": 39.199,
+        "ranking-remerge": 0.048,
+        "ranking-preferences": 1.984,
+        "ranking-sort": 0.068,
+        "ranking-finalize": 2.1,
+        "guidance:man": 42.541,
+        "guidance:info": 0.268,
+        "guidance:tldr": 0.06,
+        "guidance:curated": 0.002,
+        "confidence": 0.072
       },
       "forensics": null,
       "error": "",
@@ -1123,7 +1151,7 @@
         "process"
       ],
       "return_code": 0,
-      "latency_ms": 420.30297499877634,
+      "latency_ms": 69.69090699931257,
       "top1": "btop",
       "top3": [
         "btop",
@@ -1133,21 +1161,21 @@
       "ambiguity": "clear",
       "confidence": 0.8773,
       "frame": "Inspect",
-      "search_ms": 408.551,
+      "search_ms": 65.728,
       "stage_timings": {
-        "source:index": 184.522,
-        "source:arch-packages": 13.42,
-        "ranking-prefilter": 28.369,
-        "enricher:pkgfile": 26.958,
-        "ranking-remerge": 0.418,
-        "ranking-preferences": 32.43,
-        "ranking-sort": 2.124,
-        "ranking-finalize": 34.978,
-        "guidance:man": 114.542,
-        "guidance:info": 2.452,
-        "guidance:tldr": 0.345,
-        "guidance:curated": 0.012,
-        "confidence": 1.0
+        "source:index": 4.5,
+        "source:arch-packages": 2.998,
+        "ranking-prefilter": 1.725,
+        "enricher:pkgfile": 12.04,
+        "ranking-remerge": 0.048,
+        "ranking-preferences": 1.791,
+        "ranking-sort": 0.063,
+        "ranking-finalize": 1.902,
+        "guidance:man": 41.993,
+        "guidance:info": 0.249,
+        "guidance:tldr": 0.061,
+        "guidance:curated": 0.002,
+        "confidence": 0.069
       },
       "forensics": null,
       "error": "",
@@ -1193,7 +1221,7 @@
         "ambiguity"
       ],
       "return_code": 0,
-      "latency_ms": 500.53836399820284,
+      "latency_ms": 128.36361899826443,
       "top1": "cpio",
       "top3": [
         "cpio",
@@ -1203,21 +1231,21 @@
       "ambiguity": "ambiguous",
       "confidence": 0.6215,
       "frame": "Discover",
-      "search_ms": 488.184,
+      "search_ms": 124.521,
       "stage_timings": {
-        "source:index": 159.472,
-        "source:arch-packages": 52.65,
-        "ranking-prefilter": 23.38,
-        "enricher:pkgfile": 69.156,
-        "ranking-remerge": 0.501,
-        "ranking-preferences": 24.77,
-        "ranking-sort": 2.5,
-        "ranking-finalize": 27.776,
-        "guidance:man": 125.249,
-        "guidance:info": 26.283,
-        "guidance:tldr": 0.896,
-        "guidance:curated": 0.006,
-        "confidence": 0.705
+        "source:index": 3.897,
+        "source:arch-packages": 3.03,
+        "ranking-prefilter": 1.478,
+        "enricher:pkgfile": 44.876,
+        "ranking-remerge": 0.061,
+        "ranking-preferences": 1.835,
+        "ranking-sort": 0.088,
+        "ranking-finalize": 1.985,
+        "guidance:man": 58.993,
+        "guidance:info": 9.455,
+        "guidance:tldr": 0.521,
+        "guidance:curated": 0.001,
+        "confidence": 0.051
       },
       "forensics": null,
       "error": "",
@@ -1252,7 +1280,7 @@
         "archive"
       ],
       "return_code": 0,
-      "latency_ms": 447.11761199869215,
+      "latency_ms": 110.94545100058895,
       "top1": "zip",
       "top3": [
         "zip",
@@ -1262,21 +1290,21 @@
       "ambiguity": "competitive",
       "confidence": 0.7223,
       "frame": "Discover",
-      "search_ms": 434.788,
+      "search_ms": 105.23,
       "stage_timings": {
-        "source:index": 164.951,
-        "source:arch-packages": 8.651,
-        "ranking-prefilter": 22.138,
-        "enricher:pkgfile": 10.614,
-        "ranking-remerge": 0.36,
-        "ranking-preferences": 22.33,
-        "ranking-sort": 1.912,
-        "ranking-finalize": 24.608,
-        "guidance:man": 196.46,
-        "guidance:info": 2.395,
-        "guidance:tldr": 2.238,
-        "guidance:curated": 0.005,
-        "confidence": 0.757
+        "source:index": 3.794,
+        "source:arch-packages": 0.897,
+        "ranking-prefilter": 1.232,
+        "enricher:pkgfile": 4.559,
+        "ranking-remerge": 0.04,
+        "ranking-preferences": 1.233,
+        "ranking-sort": 0.052,
+        "ranking-finalize": 1.326,
+        "guidance:man": 89.54,
+        "guidance:info": 0.495,
+        "guidance:tldr": 3.101,
+        "guidance:curated": 0.002,
+        "confidence": 0.069
       },
       "forensics": null,
       "error": "",
@@ -1319,31 +1347,31 @@
         "archive"
       ],
       "return_code": 0,
-      "latency_ms": 326.2007449993689,
+      "latency_ms": 189.9030880013015,
       "top1": "tar",
       "top3": [
         "tar",
-        "ptargrep",
-        "haskell-tar-conduit"
+        "haskell-tar-conduit",
+        "ptargrep"
       ],
       "ambiguity": "clear",
-      "confidence": 0.7737,
+      "confidence": 0.8693,
       "frame": "Discover",
-      "search_ms": 314.903,
+      "search_ms": 182.686,
       "stage_timings": {
-        "source:index": 60.631,
-        "source:arch-packages": 3.526,
-        "ranking-prefilter": 11.556,
-        "enricher:pkgfile": 24.592,
-        "ranking-remerge": 0.17,
-        "ranking-preferences": 11.424,
-        "ranking-sort": 0.621,
-        "ranking-finalize": 12.22,
-        "guidance:man": 174.53,
-        "guidance:info": 25.244,
-        "guidance:tldr": 0.533,
-        "guidance:curated": 0.01,
-        "confidence": 0.935
+        "source:index": 3.431,
+        "source:arch-packages": 5.636,
+        "ranking-prefilter": 0.598,
+        "enricher:pkgfile": 39.421,
+        "ranking-remerge": 0.04,
+        "ranking-preferences": 0.727,
+        "ranking-sort": 0.02,
+        "ranking-finalize": 0.79,
+        "guidance:man": 113.907,
+        "guidance:info": 17.838,
+        "guidance:tldr": 0.373,
+        "guidance:curated": 0.003,
+        "confidence": 0.065
       },
       "forensics": null,
       "error": "",
@@ -1369,8 +1397,8 @@
           ],
           "actual": [
             "tar",
-            "ptargrep",
-            "haskell-tar-conduit"
+            "haskell-tar-conduit",
+            "ptargrep"
           ]
         }
       ]
@@ -1383,31 +1411,31 @@
         "compare"
       ],
       "return_code": 0,
-      "latency_ms": 154.08843900149805,
+      "latency_ms": 35.90226399683161,
       "top1": "meld",
       "top3": [
         "meld",
         "FreeFileSync",
-        "diffoscope"
+        "diff"
       ],
       "ambiguity": "clear",
-      "confidence": 0.8663,
+      "confidence": 0.8375,
       "frame": "Discover",
-      "search_ms": 141.115,
+      "search_ms": 22.81,
       "stage_timings": {
-        "source:index": 90.743,
-        "source:arch-packages": 6.861,
-        "ranking-prefilter": 11.436,
-        "enricher:pkgfile": 15.77,
-        "ranking-remerge": 0.255,
-        "ranking-preferences": 11.201,
-        "ranking-sort": 1.192,
-        "ranking-finalize": 12.655,
-        "guidance:man": 0.188,
-        "guidance:info": 0.098,
-        "guidance:tldr": 1.086,
-        "guidance:curated": 0.013,
-        "confidence": 0.672
+        "source:index": 2.964,
+        "source:arch-packages": 0.812,
+        "ranking-prefilter": 0.809,
+        "enricher:pkgfile": 15.675,
+        "ranking-remerge": 0.032,
+        "ranking-preferences": 1.605,
+        "ranking-sort": 0.047,
+        "ranking-finalize": 1.686,
+        "guidance:man": 0.053,
+        "guidance:info": 0.022,
+        "guidance:tldr": 0.312,
+        "guidance:curated": 0.007,
+        "confidence": 0.057
       },
       "forensics": null,
       "error": "",
@@ -1436,7 +1464,7 @@
           "actual": [
             "meld",
             "FreeFileSync",
-            "diffoscope"
+            "diff"
           ]
         },
         {
@@ -1455,31 +1483,31 @@
         "storage"
       ],
       "return_code": 0,
-      "latency_ms": 1543.1030950021523,
+      "latency_ms": 155.5741419979313,
       "top1": "find",
       "top3": [
         "find",
-        "fd",
-        "rg"
+        "rg",
+        "fd"
       ],
       "ambiguity": "low-confidence",
-      "confidence": 0.5559,
+      "confidence": 0.58,
       "frame": "Discover",
-      "search_ms": 1531.161,
+      "search_ms": 145.237,
       "stage_timings": {
-        "source:index": 192.217,
-        "source:arch-packages": 429.428,
-        "ranking-prefilter": 282.733,
-        "enricher:pkgfile": 43.581,
-        "ranking-remerge": 0.583,
-        "ranking-preferences": 306.058,
-        "ranking-sort": 3.498,
-        "ranking-finalize": 310.147,
-        "guidance:man": 256.79,
-        "guidance:info": 8.343,
-        "guidance:tldr": 2.565,
-        "guidance:curated": 0.006,
-        "confidence": 1.958
+        "source:index": 4.925,
+        "source:arch-packages": 1.481,
+        "ranking-prefilter": 1.963,
+        "enricher:pkgfile": 7.93,
+        "ranking-remerge": 0.047,
+        "ranking-preferences": 1.502,
+        "ranking-sort": 0.066,
+        "ranking-finalize": 1.615,
+        "guidance:man": 119.156,
+        "guidance:info": 5.647,
+        "guidance:tldr": 1.991,
+        "guidance:curated": 0.011,
+        "confidence": 0.223
       },
       "forensics": null,
       "error": "",
@@ -1513,8 +1541,8 @@
           ],
           "actual": [
             "find",
-            "fd",
-            "rg"
+            "rg",
+            "fd"
           ]
         }
       ]
@@ -1526,31 +1554,34 @@
         "files"
       ],
       "return_code": 0,
-      "latency_ms": 884.108787002333,
+      "latency_ms": 271.2729259983462,
       "top1": "rename",
       "top3": [
         "rename",
         "mv",
-        "mren"
+        "renamer"
       ],
       "ambiguity": "competitive",
-      "confidence": 0.7711,
-      "frame": "Discover",
-      "search_ms": 868.029,
+      "confidence": 0.7925,
+      "frame": "Modify",
+      "search_ms": 264.951,
       "stage_timings": {
-        "source:index": 184.35,
-        "source:arch-packages": 17.209,
-        "ranking-prefilter": 251.622,
-        "enricher:pkgfile": 28.717,
-        "ranking-remerge": 0.444,
-        "ranking-preferences": 248.613,
-        "ranking-sort": 2.313,
-        "ranking-finalize": 251.377,
-        "guidance:man": 118.932,
-        "guidance:info": 8.799,
-        "guidance:tldr": 0.744,
-        "guidance:curated": 0.005,
-        "confidence": 3.396
+        "source:index": 5.829,
+        "source:arch-packages": 1.758,
+        "ranking-prefilter": 14.225,
+        "enricher:pkgfile": 38.37,
+        "ranking-remerge": 0.077,
+        "ranking-preferences": 10.493,
+        "ranking-sort": 0.186,
+        "ranking-finalize": 10.758,
+        "guidance:man": 93.438,
+        "guidance:info": 3.47,
+        "guidance:tldr": 0.443,
+        "guidance:curated": 0.004,
+        "syntax:man": 95.238,
+        "syntax:fish-completion": 0.715,
+        "answer-compose": 0.052,
+        "confidence": 0.248
       },
       "forensics": null,
       "error": "",
@@ -1581,7 +1612,7 @@
           "actual": [
             "rename",
             "mv",
-            "mren"
+            "renamer"
           ]
         }
       ]
@@ -1593,31 +1624,31 @@
         "media"
       ],
       "return_code": 0,
-      "latency_ms": 1582.0262060005916,
+      "latency_ms": 182.0310809998773,
       "top1": "convert",
       "top3": [
         "convert",
         "sixel2png",
-        "ppmtoy4m"
+        "png2yuv"
       ],
       "ambiguity": "competitive",
-      "confidence": 0.7607,
+      "confidence": 0.7623,
       "frame": "Discover",
-      "search_ms": 1570.588,
+      "search_ms": 174.508,
       "stage_timings": {
-        "source:index": 263.951,
-        "source:arch-packages": 41.979,
-        "ranking-prefilter": 529.588,
-        "enricher:pkgfile": 35.353,
-        "ranking-remerge": 0.72,
-        "ranking-preferences": 556.718,
-        "ranking-sort": 2.795,
-        "ranking-finalize": 560.243,
-        "guidance:man": 124.47,
-        "guidance:info": 2.442,
-        "guidance:tldr": 2.097,
-        "guidance:curated": 0.005,
-        "confidence": 7.202
+        "source:index": 6.54,
+        "source:arch-packages": 6.5,
+        "ranking-prefilter": 2.251,
+        "enricher:pkgfile": 51.653,
+        "ranking-remerge": 0.393,
+        "ranking-preferences": 2.125,
+        "ranking-sort": 0.076,
+        "ranking-finalize": 2.596,
+        "guidance:man": 96.993,
+        "guidance:info": 0.972,
+        "guidance:tldr": 6.208,
+        "guidance:curated": 0.003,
+        "confidence": 0.121
       },
       "forensics": null,
       "error": "",
@@ -1646,7 +1677,7 @@
           "actual": [
             "convert",
             "sixel2png",
-            "ppmtoy4m"
+            "png2yuv"
           ]
         }
       ]
@@ -1659,7 +1690,7 @@
         "entity"
       ],
       "return_code": 0,
-      "latency_ms": 245.35629999809316,
+      "latency_ms": 168.4939939987089,
       "top1": "rg",
       "top3": [
         "rg"
@@ -1667,21 +1698,21 @@
       "ambiguity": "clear",
       "confidence": 0.9848,
       "frame": "Explain",
-      "search_ms": 234.018,
+      "search_ms": 163.575,
       "stage_timings": {
-        "source:index": 27.632,
-        "source:arch-packages": 3.188,
-        "ranking-prefilter": 0.193,
-        "enricher:pkgfile": 28.186,
-        "ranking-remerge": 0.019,
-        "ranking-preferences": 0.27,
-        "ranking-sort": 0.013,
-        "ranking-finalize": 0.308,
-        "guidance:man": 171.171,
-        "guidance:info": 2.337,
-        "guidance:tldr": 0.366,
-        "guidance:curated": 0.01,
-        "confidence": 0.097
+        "source:index": 6.639,
+        "source:arch-packages": 2.065,
+        "ranking-prefilter": 0.08,
+        "enricher:pkgfile": 32.001,
+        "ranking-remerge": 0.021,
+        "ranking-preferences": 0.104,
+        "ranking-sort": 0.005,
+        "ranking-finalize": 0.131,
+        "guidance:man": 122.041,
+        "guidance:info": 0.291,
+        "guidance:tldr": 0.07,
+        "guidance:curated": 0.002,
+        "confidence": 0.01
       },
       "forensics": null,
       "error": "",
@@ -1732,7 +1763,7 @@
         "compare"
       ],
       "return_code": 0,
-      "latency_ms": 558.1835170014529,
+      "latency_ms": 222.59575799762388,
       "top1": "rg",
       "top3": [
         "rg",
@@ -1741,21 +1772,21 @@
       "ambiguity": "clear",
       "confidence": 0.9721,
       "frame": "Compare",
-      "search_ms": 545.845,
+      "search_ms": 213.387,
       "stage_timings": {
-        "source:index": 85.478,
-        "source:arch-packages": 26.563,
-        "ranking-prefilter": 17.741,
-        "enricher:pkgfile": 63.811,
-        "ranking-remerge": 0.095,
-        "ranking-preferences": 17.878,
-        "ranking-sort": 0.187,
-        "ranking-finalize": 18.168,
-        "guidance:man": 319.467,
-        "guidance:info": 9.807,
-        "guidance:tldr": 3.2569999999999997,
-        "guidance:curated": 0.017,
-        "confidence": 0.479
+        "source:index": 8.307,
+        "source:arch-packages": 2.02,
+        "ranking-prefilter": 0.861,
+        "enricher:pkgfile": 42.91,
+        "ranking-remerge": 0.025,
+        "ranking-preferences": 0.9610000000000001,
+        "ranking-sort": 0.009000000000000001,
+        "ranking-finalize": 0.996,
+        "guidance:man": 151.74200000000002,
+        "guidance:info": 5.194,
+        "guidance:tldr": 0.9289999999999999,
+        "guidance:curated": 0.007,
+        "confidence": 0.061
       },
       "forensics": null,
       "error": "",
@@ -1801,7 +1832,7 @@
         "locate"
       ],
       "return_code": 0,
-      "latency_ms": 798.4062309988076,
+      "latency_ms": 210.83792799981893,
       "top1": "ssh",
       "top3": [
         "ssh",
@@ -1811,22 +1842,22 @@
       "ambiguity": "clear",
       "confidence": 0.9848,
       "frame": "Locate",
-      "search_ms": 786.224,
+      "search_ms": 206.462,
       "stage_timings": {
-        "location-source": 0.166,
-        "source:index": 182.478,
-        "source:arch-packages": 99.086,
-        "ranking-prefilter": 42.955,
-        "enricher:pkgfile": 109.72500000000001,
-        "ranking-remerge": 0.593,
-        "ranking-preferences": 43.298,
-        "ranking-sort": 2.955,
-        "ranking-finalize": 46.852000000000004,
-        "guidance:man": 298.841,
-        "guidance:info": 2.597,
-        "guidance:tldr": 0.468,
-        "guidance:curated": 0.005,
-        "confidence": 0.512
+        "location-source": 0.315,
+        "source:index": 7.882999999999999,
+        "source:arch-packages": 8.377,
+        "ranking-prefilter": 2.247,
+        "enricher:pkgfile": 66.019,
+        "ranking-remerge": 0.08199999999999999,
+        "ranking-preferences": 2.2239999999999998,
+        "ranking-sort": 0.08499999999999999,
+        "ranking-finalize": 2.393,
+        "guidance:man": 114.894,
+        "guidance:info": 0.28,
+        "guidance:tldr": 3.759,
+        "guidance:curated": 0.001,
+        "confidence": 0.038
       },
       "forensics": null,
       "error": "",

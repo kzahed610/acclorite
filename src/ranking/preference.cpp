@@ -79,6 +79,28 @@ bool query_explicitly_mentions(
     });
 }
 
+std::size_t explicit_image_format_count(const Query& query) {
+    static constexpr std::array<std::string_view, 12> formats{
+        "png", "jpg", "jpeg", "webp", "gif", "bmp",
+        "tif", "tiff", "heic", "heif", "avif", "jxl",
+    };
+    std::size_t count = 0;
+    for (const auto format : formats) {
+        if (std::ranges::find(query.tokens, format) != query.tokens.end()) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+bool exact_explicit_subject_name(const Query& query, const std::string_view candidate_name) {
+    const auto groups = query::concept_groups(query);
+    return std::ranges::any_of(groups, [&](const query::ConceptGroup& group) {
+        return !group.implicit && group.role == query::ConceptRole::Subject &&
+            group.term == candidate_name;
+    });
+}
+
 struct DomainSpecialization {
     std::string_view id;
     std::string_view label;
@@ -88,6 +110,8 @@ struct DomainSpecialization {
 
 struct SemanticPolicy {
     double front_door_floor{0.0};
+    std::string_view front_door_id{"front-door-role"};
+    std::string_view front_door_label{"verified front-door role satisfies requested task"};
     std::vector<DomainSpecialization> specializations;
 };
 
@@ -105,17 +129,29 @@ SemanticPolicy semantic_policy(
     const std::string command = lower(candidate.command);
     const std::string package = lower(candidate.package);
 
-    // Entity lookup is never a generic discovery request. If the user explicitly
-    // named this command/package, its specialization is part of the requested
-    // entity rather than an unwanted domain constraint.
-    const bool explicitly_named = std::ranges::find(query.tokens, command) != query.tokens.end() ||
-        (!package.empty() && std::ranges::find(query.tokens, package) != query.tokens.end());
-    if (explicitly_named) {
+    // Entity lookup is never a generic discovery request. Treat *resolved* entity
+    // evidence as explicit naming, not merely the presence of a command-shaped
+    // token. A command can also be an ordinary English operation (for example
+    // ImageMagick `compare` in "compare these directories", or binutils `size`
+    // in "folder size"). Letting any raw token bypass specialization policy made
+    // those accidental name collisions effectively immune to domain constraints.
+    const bool exact_query_name = query.normalized == command ||
+        (!package.empty() && query.normalized == package);
+    const bool resolved_target = std::ranges::find(query.targets, command) != query.targets.end() ||
+        (!package.empty() && std::ranges::find(query.targets, package) != query.targets.end());
+    const bool explicit_entity_frame =
+        query.frame.frame == QueryFrame::Explain || query.frame.frame == QueryFrame::Compare;
+    const bool entity_frame_name = explicit_entity_frame &&
+        (std::ranges::find(query.tokens, command) != query.tokens.end() ||
+         (!package.empty() && std::ranges::find(query.tokens, package) != query.tokens.end()));
+    if (exact_query_name || resolved_target || entity_frame_name) {
         return SemanticPolicy{};
     }
     const auto summary_words = words(summary);
     const auto command_words = words(command);
     const auto package_words = words(package);
+
+    const bool runnable_front_door = candidate.cli_capable || !candidate.path.empty();
 
     // Positive role evidence: documentation for general archive front doors is
     // often intentionally terse (for example, "archiving utility") and may not
@@ -140,11 +176,83 @@ SemanticPolicy semantic_policy(
                                            "compression", "pack", "packing", "manager",
                                            "utility", "tool"}));
 
+    const bool archive_extraction_requested =
+        has_explicit_concept(query, {"extract"}) && has_concept(query, {"tar", "archive"});
+    const bool exact_archive_subject_front_door =
+        archive_front_door && exact_explicit_subject_name(query, command);
+
     SemanticPolicy policy;
-    if (folder_compression_requested && archive_front_door) {
+    const auto raise_front_door_floor = [&](const double floor, const std::string_view id,
+                                             const std::string_view label) {
+        if (floor <= policy.front_door_floor) {
+            return;
+        }
+        policy.front_door_floor = floor;
+        policy.front_door_id = id;
+        policy.front_door_label = label;
+    };
+
+    if (runnable_front_door &&
+        ((folder_compression_requested && archive_front_door) ||
+         (archive_extraction_requested && exact_archive_subject_front_door))) {
         // Just above the strong semantic tier. The candidate must still survive
-        // all query-relative specialization constraints below.
-        policy.front_door_floor = 0.845;
+        // all query-relative specialization constraints below. For extraction,
+        // require an exact explicit subject-name affinity (for example the `tar`
+        // format concept and the `tar` front door) so every generic archive tool
+        // does not receive the same positive evidence.
+        raise_front_door_floor(
+            0.845,
+            "archive-front-door-role",
+            "generic archive front-door role satisfies requested archive task"
+        );
+    }
+
+    const bool filesystem_usage_requested =
+        has_explicit_concept(query, {"usage"}) &&
+        has_concept(query, {"disk", "storage", "files", "file", "folder", "folders"});
+    const bool filesystem_usage_front_door =
+        (contains_any_word(summary_words, {"disk", "storage", "filesystem", "space"}) &&
+         contains_any_word(summary_words, {"usage", "size", "sizes", "space", "utilization"})) ||
+        summary.find("disk usage") != std::string::npos ||
+        summary.find("file space usage") != std::string::npos ||
+        summary.find("directory size") != std::string::npos ||
+        summary.find("directory sizes") != std::string::npos;
+    if (runnable_front_door && filesystem_usage_requested && filesystem_usage_front_door) {
+        raise_front_door_floor(
+            0.845,
+            "filesystem-usage-front-door-role",
+            "filesystem-usage front door satisfies requested size/space task"
+        );
+    }
+
+    const bool directory_compare_requested =
+        has_explicit_concept(query, {"compare"}) &&
+        has_concept(query, {"files", "file", "folder", "folders"});
+    const bool file_compare_front_door =
+        contains_any_word(summary_words, {"compare", "compares", "comparison", "difference",
+                                           "differences", "diff"}) &&
+        contains_any_word(summary_words, {"file", "files", "directory", "directories",
+                                           "folder", "folders"});
+    if (runnable_front_door && directory_compare_requested && file_compare_front_door) {
+        raise_front_door_floor(
+            0.845,
+            "file-compare-front-door-role",
+            "file/directory comparison front door satisfies requested comparison task"
+        );
+    }
+
+    const bool image_format_conversion_requested =
+        has_explicit_concept(query, {"convert"}) && explicit_image_format_count(query) >= 2;
+    const bool image_conversion_front_door =
+        contains_any_word(summary_words, {"image", "images", "bitmap", "pixel", "pixels"}) &&
+        contains_any_word(summary_words, {"convert", "converter", "conversion", "conversions",
+                                           "format", "formats", "transform"});
+    if (runnable_front_door && image_format_conversion_requested && image_conversion_front_door) {
+        raise_front_door_floor(
+            0.845,
+            "image-conversion-front-door-role",
+            "image-format conversion front door satisfies requested transformation"
+        );
     }
 
     auto& result = policy.specializations;
@@ -240,11 +348,18 @@ SemanticPolicy semantic_policy(
         {"audio-domain", "unrequested audio specialization", 0.84, 0.96});
 
     const bool filesystem_format_specialized =
-        contains_any_word(summary_words, {"exfat", "ntfs", "ext4", "xfs", "btrfs"}) ||
-        contains_any_word(command_words, {"exfat", "ntfs", "ext4", "xfs", "btrfs"}) ||
-        contains_any_word(package_words, {"exfat", "ntfs", "ext4", "xfs", "btrfs"});
+        contains_any_word(summary_words, {"exfat", "ntfs", "fat", "vfat", "msdos",
+                                           "ext2", "ext3", "ext4", "xfs", "btrfs",
+                                           "f2fs", "zfs", "nilfs", "erofs", "jfs", "udf"}) ||
+        contains_any_word(command_words, {"exfat", "ntfs", "fat", "vfat", "msdos",
+                                           "ext2", "ext3", "ext4", "xfs", "btrfs",
+                                           "f2fs", "zfs", "nilfs", "erofs", "jfs", "udf"}) ||
+        contains_any_word(package_words, {"exfat", "ntfs", "fat", "vfat", "msdos",
+                                           "ext2", "ext3", "ext4", "xfs", "btrfs",
+                                           "f2fs", "zfs", "nilfs", "erofs", "jfs", "udf"});
     const bool filesystem_format_requested = query_explicitly_mentions(
-        query, {"exfat", "ntfs", "ext4", "xfs", "btrfs"}
+        query, {"exfat", "ntfs", "fat", "vfat", "msdos", "ext2", "ext3", "ext4",
+                "xfs", "btrfs", "f2fs", "zfs", "nilfs", "erofs", "jfs", "udf"}
     );
     add(filesystem_format_specialized, filesystem_format_requested,
         {"filesystem-format-domain", "unrequested filesystem-format specialization", 0.80, 0.95});
@@ -309,6 +424,50 @@ SemanticPolicy semantic_policy(
         {"operation-comparison-role", "comparison/analysis role conflicts with requested archive transformation",
          0.72, 0.94});
 
+    // Transformation-direction guardrail. Search/inspection utilities can have
+    // excellent lexical coverage for "extract tar files" because they operate
+    // *inside* archives, while never performing extraction. Penalize that role
+    // conflict only for an explicit archive transformation request.
+    const bool archive_observer_specialized =
+        contains_any_word(summary_words, {"search", "searches", "grep", "pattern", "matching",
+                                           "inspect", "inspection", "browse"}) &&
+        (contains_any_word(summary_words, {"archive", "archives", "tar", "compressed"}) ||
+         summary.find("contents of files") != std::string::npos ||
+         summary.find("inside archive") != std::string::npos);
+    const bool archive_observer_requested =
+        has_explicit_concept(query, {"search", "find", "inspect", "show", "list", "view", "check"});
+    add(archive_observer_specialized && archive_transform_requested, archive_observer_requested,
+        {"archive-observer-role", "archive search/inspection role conflicts with requested transformation",
+         0.60, 0.90});
+
+    // Domain guardrail for generic filesystem comparison. Programs that compare
+    // images can legitimately match the verb "compare" exactly, but their input
+    // domain contradicts a request about directories/files.
+    const bool image_specialized =
+        contains_any_word(summary_words, {"image", "images", "bitmap", "pixel", "pixels",
+                                           "imagemagick", "photograph", "photographs"}) ||
+        contains_any_word(package_words, {"imagemagick", "graphicsmagick"});
+    const bool image_requested =
+        has_concept(query, {"image"}) || explicit_image_format_count(query) > 0;
+    add(image_specialized && directory_compare_requested, image_requested,
+        {"image-domain-role", "image-specific role conflicts with requested file/directory comparison",
+         0.62, 0.91});
+
+    // Output-domain guardrail for image-to-image conversion. Utilities such as
+    // terminal/ASCII-art renderers are valid image converters in a broad lexical
+    // sense, but they do not preserve the requested output domain when the human
+    // named two raster formats.
+    const bool text_output_specialized =
+        contains_any_word(summary_words, {"ascii", "ansi", "terminal", "characters", "character"}) ||
+        summary.find("text art") != std::string::npos || summary.find("text-based") != std::string::npos ||
+        command.find("2txt") != std::string::npos || command.find("to-text") != std::string::npos;
+    const bool text_output_requested = query_explicitly_mentions(
+        query, {"ascii", "ansi", "text", "characters", "character"}
+    );
+    add(text_output_specialized && image_format_conversion_requested, text_output_requested,
+        {"image-text-output-role", "text/terminal output conflicts with requested image-format conversion",
+         0.58, 0.90});
+
     const bool development_library_specialized =
         package.starts_with("haskell-") ||
         contains_any_word(summary_words, {"library", "libraries", "bindings", "sdk"}) ||
@@ -335,12 +494,25 @@ SemanticFitAssessment assess_semantic_fit_with_policy(
         .adjustments = {},
     };
 
+    if (candidate.retrieval_relevance_floor > assessment.effective_fit) {
+        const double before = assessment.effective_fit;
+        assessment.effective_fit = std::min(candidate.retrieval_relevance_floor, 0.88);
+        assessment.adjustments.push_back(RankingAdjustment{
+            .id = "retrieval-relevance-floor",
+            .label = "bounded source-substantiated retrieval relevance",
+            .kind = AdjustmentKind::Floor,
+            .value = assessment.effective_fit,
+            .before = before,
+            .after = assessment.effective_fit,
+        });
+    }
+
     if (policy.front_door_floor > assessment.effective_fit) {
         const double before = assessment.effective_fit;
         assessment.effective_fit = policy.front_door_floor;
         assessment.adjustments.push_back(RankingAdjustment{
-            .id = "archive-front-door-role",
-            .label = "generic archive front-door role satisfies folder-compression task",
+            .id = std::string(policy.front_door_id),
+            .label = std::string(policy.front_door_label),
             .kind = AdjustmentKind::Floor,
             .value = policy.front_door_floor,
             .before = before,

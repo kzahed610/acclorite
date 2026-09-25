@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "name": "acclorite-m11-heldout-v1",
+  "description": "Milestone-11 held-out paraphrase corpus created after the M10 baseline and full-man lexical Experiment A, but before Experiment B semantic-representation measurements. It covers the same capability families as research-v1 with materially different wording. Do not tune an experiment on this corpus and then call the same result held-out evidence.",
+  "cases": [
+    {
+      "id": "recent-files-by-time-heldout",
+      "query": "which files were modified during the past day",
+      "tags": ["m11", "heldout", "semantic-distance", "files", "time"],
+      "expect": {"top1_any": ["find", "fd", "fdfind"], "top3_any": ["find", "fd", "fdfind"]}
+    },
+    {
+      "id": "repeat-command-periodically-heldout",
+      "query": "refresh a program's output every couple seconds",
+      "tags": ["m11", "heldout", "semantic-distance", "process", "monitoring"],
+      "expect": {"top1_any": ["watch"], "top3_any": ["watch"]}
+    },
+    {
+      "id": "pid-from-process-name-heldout",
+      "query": "give me the pid for a program when all i know is its name",
+      "tags": ["m11", "heldout", "semantic-distance", "process"],
+      "expect": {"top1_any": ["pgrep", "pidof"], "top3_any": ["pgrep", "pidof"]}
+    },
+    {
+      "id": "shared-library-dependencies-heldout",
+      "query": "list the dynamic libraries an executable is linked against",
+      "tags": ["m11", "heldout", "semantic-distance", "binary", "inspect"],
+      "expect": {"top1_any": ["ldd"], "top3_any": ["ldd"]}
+    },
+    {
+      "id": "detect-file-type-by-content-heldout",
+      "query": "identify a file format from its bytes rather than its suffix",
+      "tags": ["m11", "heldout", "semantic-distance", "files", "inspect"],
+      "expect": {"top1_any": ["file"], "top3_any": ["file"]}
+    },
+    {
+      "id": "split-large-file-heldout",
+      "query": "chop a very large file into fixed size chunks",
+      "tags": ["m11", "heldout", "semantic-distance", "files", "transform"],
+      "expect": {"top1_any": ["split"], "top3_any": ["split"]}
+    },
+    {
+      "id": "second-column-text-heldout",
+      "query": "extract field number two from each whitespace delimited line",
+      "tags": ["m11", "heldout", "semantic-distance", "text"],
+      "expect": {"top1_any": ["awk", "cut"], "top3_any": ["awk", "cut"]}
+    },
+    {
+      "id": "stdin-one-command-per-line-heldout",
+      "query": "take incoming lines and invoke a program separately for each one",
+      "tags": ["m11", "heldout", "semantic-distance", "text", "process"],
+      "expect": {"top1_any": ["xargs", "parallel"], "top3_any": ["xargs", "parallel"]}
+    },
+    {
+      "id": "remove-adjacent-duplicates-heldout",
+      "query": "collapse consecutive duplicate lines in sorted input",
+      "tags": ["m11", "heldout", "semantic-distance", "text"],
+      "expect": {"top1_any": ["uniq"], "top3_any": ["uniq"]}
+    },
+    {
+      "id": "epoch-to-readable-date-heldout",
+      "query": "convert a unix timestamp to a normal calendar date",
+      "tags": ["m11", "heldout", "semantic-distance", "time", "conversion"],
+      "expect": {"top1_any": ["date"], "top3_any": ["date"]}
+    },
+    {
+      "id": "survive-terminal-close-heldout",
+      "query": "leave a program running even after its shell session disappears",
+      "tags": ["m11", "heldout", "semantic-distance", "process", "session"],
+      "expect": {"top1_any": ["nohup", "tmux", "screen"], "top3_any": ["nohup", "tmux", "screen"]}
+    },
+    {
+      "id": "count-file-lines-heldout",
+      "query": "tell me the number of newline records in a file",
+      "tags": ["m11", "heldout", "semantic-distance", "text", "files"],
+      "expect": {"top1_any": ["wc"], "top3_any": ["wc"]}
+    },
+    {
+      "id": "first-lines-only-heldout",
+      "query": "print the beginning twenty lines and ignore the rest",
+      "tags": ["m11", "heldout", "semantic-distance", "text", "files"],
+      "expect": {"top1_any": ["head"], "top3_any": ["head"]}
+    },
+    {
+      "id": "follow-growing-log-heldout",
+      "query": "stream lines that are added to a log after i start watching it",
+      "tags": ["m11", "heldout", "semantic-distance", "text", "monitoring"],
+      "expect": {"top1_any": ["tail"], "top3_any": ["tail"]}
+    },
+    {
+      "id": "readable-strings-from-binary-heldout",
+      "query": "find printable text buried inside an executable or binary",
+      "tags": ["m11", "heldout", "semantic-distance", "binary", "inspect"],
+      "expect": {"top1_any": ["strings"], "top3_any": ["strings"]}
+    },
+    {
+      "id": "inspect-file-as-hex-heldout",
+      "query": "dump file contents as hexadecimal bytes",
+      "tags": ["m11", "heldout", "semantic-distance", "binary", "inspect"],
+      "expect": {"top1_any": ["hexdump", "xxd", "od"], "top3_any": ["hexdump", "xxd", "od"]}
+    },
+    {
+      "id": "owner-read-write-only-heldout",
+      "query": "set permissions so only the owning user can read and write the file",
+      "tags": ["m11", "heldout", "semantic-distance", "permissions", "modify"],
+      "expect": {"top1_any": ["chmod"], "top3_any": ["chmod"]}
+    },
+    {
+      "id": "change-file-owner-heldout",
+      "query": "assign this file to a different user account",
+      "tags": ["m11", "heldout", "semantic-distance", "permissions", "modify"],
+      "expect": {"top1_any": ["chown"], "top3_any": ["chown"]}
+    },
+    {
+      "id": "create-symbolic-link-heldout",
+      "query": "create a filesystem alias that references the original path rather than duplicating data",
+      "tags": ["m11", "heldout", "semantic-distance", "files", "link"],
+      "expect": {"top1_any": ["ln"], "top3_any": ["ln"]}
+    },
+    {
+      "id": "mounted-filesystem-free-space-heldout",
+      "query": "report remaining capacity for mounted filesystems",
+      "tags": ["m11", "heldout", "semantic-distance", "storage", "inspect"],
+      "expect": {"top1_any": ["df", "duf"], "top3_any": ["df", "duf"]}
+    },
+    {
+      "id": "mount-hierarchy-heldout",
+      "query": "display mounts as a tree showing their mount points",
+      "tags": ["m11", "heldout", "semantic-distance", "storage", "mounts"],
+      "expect": {"top1_any": ["findmnt", "mount"], "top3_any": ["findmnt", "mount"]}
+    },
+    {
+      "id": "block-device-tree-heldout",
+      "query": "show block devices with disks and their child partitions",
+      "tags": ["m11", "heldout", "semantic-distance", "storage", "devices"],
+      "expect": {"top1_any": ["lsblk"], "top3_any": ["lsblk"]}
+    },
+    {
+      "id": "process-open-files-heldout",
+      "query": "list file descriptors currently held by a process",
+      "tags": ["m11", "heldout", "semantic-distance", "process", "files", "inspect"],
+      "expect": {"top1_any": ["lsof", "fuser"], "top3_any": ["lsof", "fuser"]}
+    },
+    {
+      "id": "process-parent-child-tree-heldout",
+      "query": "visualize running processes by ancestry",
+      "tags": ["m11", "heldout", "semantic-distance", "process", "tree"],
+      "expect": {"top1_any": ["pstree", "ps"], "top3_any": ["pstree", "ps"]}
+    },
+    {
+      "id": "content-fingerprint-heldout",
+      "query": "compute a digest now so i can verify the file has not changed later",
+      "tags": ["m11", "heldout", "semantic-distance", "files", "checksum"],
+      "expect": {"top1_any": ["sha256sum", "b2sum", "cksum", "md5sum"], "top3_any": ["sha256sum", "b2sum", "cksum", "md5sum"]}
+    },
+    {
+      "id": "numeric-line-sort-heldout",
+      "query": "sort lines according to numbers rather than lexical order",
+      "tags": ["m11", "heldout", "semantic-distance", "text", "sort"],
+      "expect": {"top1_any": ["sort"], "top3_any": ["sort"]}
+    }
+  ]
+}

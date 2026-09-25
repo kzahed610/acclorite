@@ -86,7 +86,30 @@ bool http_target(std::string_view value) {
     return value.starts_with("https://") || value.starts_with("http://");
 }
 
+std::optional<std::filesystem::path> executable_relative_path() {
+#ifdef __linux__
+    std::error_code error;
+    const auto executable = std::filesystem::read_symlink("/proc/self/exe", error);
+    if (!error && !executable.empty()) {
+        const auto candidate = executable.parent_path().parent_path() /
+                               "share" / "acclorite" / "curated-guidance.tsv";
+        if (std::filesystem::is_regular_file(candidate, error) && !error) {
+            return candidate;
+        }
+    }
+#endif
+    return std::nullopt;
+}
+
 std::optional<std::filesystem::path> first_existing_path() {
+    // Installed binaries should remain self-contained even when a package manager stages
+    // or relocates the configured CMake prefix. /proc/self/exe resolves the actual binary
+    // location on Linux, so ../share/acclorite follows /usr, /usr/local, ~/.local, and
+    // DESTDIR layouts without embedding a runtime dependency on the build tree.
+    if (const auto relative = executable_relative_path()) {
+        return relative;
+    }
+
     for (const char* raw : {ACCLORITE_CURATED_GUIDANCE_INSTALL_FILE,
                             ACCLORITE_CURATED_GUIDANCE_BUILD_FILE}) {
         if (raw == nullptr || *raw == '\0') {

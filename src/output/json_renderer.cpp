@@ -122,6 +122,37 @@ void JsonRenderer::render(const SearchResult& result, std::ostream& out) const {
     }
     out << "],\n";
 
+    out << "  \"action_target\": ";
+    if (!result.action_target) {
+        out << "null,\n";
+    } else {
+        const auto& target = *result.action_target;
+        out << "{\n";
+        out << "    \"kind\": \"" << action_target_kind_name(target.kind) << "\",\n";
+        out << "    \"command\": ";
+        if (target.command) {
+            out << "\"" << escape(*target.command) << "\",\n";
+        } else {
+            out << "null,\n";
+        }
+        out << "    \"literal\": ";
+        if (target.literal) {
+            out << "\"" << escape(*target.literal) << "\",\n";
+        } else {
+            out << "null,\n";
+        }
+        out << "    \"terms\": [";
+        for (std::size_t i = 0; i < target.terms.size(); ++i) {
+            if (i != 0) {
+                out << ", ";
+            }
+            out << "\"" << escape(target.terms[i]) << "\"";
+        }
+        out << "],\n";
+        out << "    \"explicit_syntax\": " << (target.explicit_syntax ? "true" : "false") << "\n";
+        out << "  },\n";
+    }
+
     out << "  \"locations\": [";
     if (!result.locations.empty()) {
         out << '\n';
@@ -140,6 +171,156 @@ void JsonRenderer::render(const SearchResult& result, std::ostream& out) const {
         out << '\n';
     }
     out << "  ],\n";
+
+    out << "  \"actionable_answer\": ";
+    if (!result.actionable_answer) {
+        out << "null,\n";
+    } else {
+        const auto& answer = *result.actionable_answer;
+        out << "{\n";
+        out << "    \"command\": \"" << escape(answer.command) << "\",\n";
+        out << "    \"explanation\": \"" << escape(answer.explanation) << "\",\n";
+        out << "    \"invocation\": ";
+        if (!answer.invocation) {
+            out << "null,\n";
+        } else {
+            out << "{\n";
+            out << "      \"command\": \"" << escape(answer.invocation->command) << "\",\n";
+            out << "      \"arguments\": [";
+            for (std::size_t i = 0; i < answer.invocation->arguments.size(); ++i) {
+                if (i != 0) {
+                    out << ", ";
+                }
+                out << "\"" << escape(answer.invocation->arguments[i].value) << "\"";
+            }
+            out << "],\n";
+            out << "      \"segments\": [";
+            if (!answer.invocation->arguments.empty()) {
+                out << '\n';
+            }
+            for (std::size_t i = 0; i < answer.invocation->arguments.size(); ++i) {
+                const auto& argument = answer.invocation->arguments[i];
+                out << "        {\"value\": \"" << escape(argument.value)
+                    << "\", \"placeholder\": " << (argument.placeholder ? "true" : "false") << "}";
+                if (i + 1 < answer.invocation->arguments.size()) {
+                    out << ',';
+                }
+                out << '\n';
+            }
+            out << "      ],\n";
+            out << "      \"complete\": " << (answer.invocation->complete ? "true" : "false") << "\n";
+            out << "    },\n";
+        }
+
+        out << "    \"relevant_options\": [";
+        if (!answer.relevant_options.empty()) {
+            out << '\n';
+        }
+        for (std::size_t option_index = 0; option_index < answer.relevant_options.size(); ++option_index) {
+            const auto& option = answer.relevant_options[option_index];
+            out << "      {\n";
+            out << "        \"names\": [";
+            for (std::size_t name_index = 0; name_index < option.names.size(); ++name_index) {
+                if (name_index != 0) {
+                    out << ", ";
+                }
+                out << "\"" << escape(option.names[name_index]) << "\"";
+            }
+            out << "],\n";
+            out << "        \"description\": \"" << escape(option.description) << "\",\n";
+            out << "        \"value_name\": ";
+            if (option.value_name) {
+                out << "\"" << escape(*option.value_name) << "\",\n";
+            } else {
+                out << "null,\n";
+            }
+            out << "        \"value_shape_known\": " << (option.value_shape_known ? "true" : "false") << ",\n";
+            out << "        \"takes_value\": " << (option.takes_value ? "true" : "false") << ",\n";
+            out << "        \"value_required\": " << (option.value_required ? "true" : "false") << ",\n";
+            out << "        \"provenance\": {\n";
+            out << "          \"source_type\": \""
+                << syntax_source_kind_name(option.provenance.source_kind) << "\",\n";
+            out << "          \"source_reference\": \""
+                << escape(option.provenance.source_reference) << "\",\n";
+            out << "          \"section\": \"" << escape(option.provenance.section) << "\"\n";
+            out << "        }\n";
+            out << "      }";
+            if (option_index + 1 < answer.relevant_options.size()) {
+                out << ',';
+            }
+            out << '\n';
+        }
+        out << "    ],\n";
+
+        out << "    \"relevant_subcommands\": [";
+        if (!answer.relevant_subcommands.empty()) {
+            out << '\n';
+        }
+        for (std::size_t subcommand_index = 0; subcommand_index < answer.relevant_subcommands.size(); ++subcommand_index) {
+            const auto& subcommand = answer.relevant_subcommands[subcommand_index];
+            out << "      {\n";
+            out << "        \"name\": \"" << escape(subcommand.name) << "\",\n";
+            out << "        \"description\": \"" << escape(subcommand.description) << "\",\n";
+            out << "        \"provenance\": {\n";
+            out << "          \"source_type\": \""
+                << syntax_source_kind_name(subcommand.provenance.source_kind) << "\",\n";
+            out << "          \"source_reference\": \""
+                << escape(subcommand.provenance.source_reference) << "\",\n";
+            out << "          \"section\": \"" << escape(subcommand.provenance.section) << "\"\n";
+            out << "        }\n";
+            out << "      }";
+            if (subcommand_index + 1 < answer.relevant_subcommands.size()) {
+                out << ',';
+            }
+            out << '\n';
+        }
+        out << "    ],\n";
+
+        out << "    \"examples\": [";
+        if (!answer.examples.empty()) {
+            out << '\n';
+        }
+        for (std::size_t example_index = 0; example_index < answer.examples.size(); ++example_index) {
+            const auto& example = answer.examples[example_index];
+            out << "      {\n";
+            out << "        \"text\": \"" << escape(example.text) << "\",\n";
+            out << "        \"source_type\": \"" << guidance_source_kind_name(example.source_kind) << "\",\n";
+            out << "        \"source_reference\": \"" << escape(example.source_reference) << "\",\n";
+            out << "        \"verified\": " << (example.verified ? "true" : "false") << ",\n";
+            out << "        \"verified_by\": \"" << escape(example.verified_by) << "\",\n";
+            out << "        \"verified_on\": \"" << escape(example.verified_on) << "\"\n";
+            out << "      }";
+            if (example_index + 1 < answer.examples.size()) {
+                out << ',';
+            }
+            out << '\n';
+        }
+        out << "    ],\n";
+
+        out << "    \"resources\": [";
+        if (!answer.resources.empty()) {
+            out << '\n';
+        }
+        for (std::size_t resource_index = 0; resource_index < answer.resources.size(); ++resource_index) {
+            const auto& resource = answer.resources[resource_index];
+            out << "      {\n";
+            out << "        \"label\": \"" << escape(resource.label) << "\",\n";
+            out << "        \"target\": \"" << escape(resource.target) << "\",\n";
+            out << "        \"source_type\": \"" << guidance_source_kind_name(resource.source_kind) << "\",\n";
+            out << "        \"source_reference\": \"" << escape(resource.source_reference) << "\",\n";
+            out << "        \"verified\": " << (resource.verified ? "true" : "false") << ",\n";
+            out << "        \"verified_by\": \"" << escape(resource.verified_by) << "\",\n";
+            out << "        \"verified_on\": \"" << escape(resource.verified_on) << "\"\n";
+            out << "      }";
+            if (resource_index + 1 < answer.resources.size()) {
+                out << ',';
+            }
+            out << '\n';
+        }
+        out << "    ],\n";
+        out << "    \"safety\": \"" << action_safety_name(answer.safety) << "\"\n";
+        out << "  },\n";
+    }
 
     out << "  \"results\": [";
     if (!result.candidates.empty()) {

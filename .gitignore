@@ -1,4 +1,12 @@
 /build/
-/docs/
 /.cache/
 compile_commands.json
+
+# Local research/runtime artifacts
+/.venv-m11/
+/benchmark-m11-*.json
+/benchmark-m11-*.npz
+/build-*/
+/cmake-build-*/
+__pycache__/
+*.pyc

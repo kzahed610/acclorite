@@ -44,5 +44,6 @@ bool IndexSource::rebuild() const { return false; }
 bool IndexSource::ensure_ready() const { return false; }
 bool IndexSource::available() const { return false; }
 std::vector<Candidate> IndexSource::search(const Query&) const { return {}; }
+std::vector<Candidate> IndexSource::inspect_commands(const Query&, std::span<const std::string>) const { return {}; }
 
 } // namespace acclorite

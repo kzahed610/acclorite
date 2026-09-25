@@ -98,12 +98,9 @@ bool entity_compare_shape(const std::vector<std::string>& words, const std::stri
         return false;
     }
 
-    // Explicit conjunction is a strong entity-comparison shape: "compare rg and grep".
-    if (std::ranges::find(std::next(marker), words.end(), "and") != words.end()) {
-        return true;
-    }
-
     // Quantity/object wording describes data to compare, not two named tools.
+    // Check this *before* conjunctions: "compare these two directories and tell
+    // me what's different" is still a task request, not an entity comparison.
     static constexpr std::array<std::string_view, 12> task_objects{
         "two", "files", "file", "folders", "folder", "directories", "directory",
         "images", "image", "texts", "text", "strings",
@@ -112,6 +109,12 @@ bool entity_compare_shape(const std::vector<std::string>& words, const std::stri
         if (std::ranges::find(task_objects, std::string_view(*it)) != task_objects.end()) {
             return false;
         }
+    }
+
+    // Explicit conjunction is a strong entity-comparison shape only after we
+    // have ruled out ordinary task objects above ("compare rg and grep").
+    if (std::ranges::find(std::next(marker), words.end(), "and") != words.end()) {
+        return true;
     }
 
     // Preserve terse developer phrasing such as `compare rg grep`.
@@ -178,6 +181,10 @@ QueryFrameResult recognize_frame(const Query& query) {
     add_phrase_patterns(evidence, text, QueryFrame::Discover, {
         {"what tool", 4.2}, {"which tool", 4.2}, {"what command", 4.2},
         {"which command", 4.2}, {"what is the command", 5.2}, {"what s the command", 5.2},
+        {"what is that command", 5.8}, {"what s that command", 5.8},
+        {"what was that command", 5.8}, {"what is that tool", 5.8},
+        {"what s that tool", 5.8}, {"what s that terminal thing", 5.8},
+        {"what is that terminal thing", 5.8}, {"what was that terminal thing", 5.8},
         {"what can i use", 4.3}, {"what do i use", 4.3}, {"what should i use", 4.3},
         {"tool for", 3.6}, {"tool to", 3.6}, {"command for", 3.6}, {"command to", 3.8},
         {"program to", 3.5}, {"something for", 3.0}, {"need something", 2.6}, {"how to", 1.2},
@@ -187,7 +194,19 @@ QueryFrameResult recognize_frame(const Query& query) {
     add_phrase_patterns(evidence, text, QueryFrame::Explain, {
         {"what is", 3.2}, {"what does", 3.6}, {"tell me about", 4.0},
         {"explain", 3.8}, {"meaning of", 3.8},
+        {"what flag", 5.2}, {"which flag", 5.2},
+        {"what option", 5.2}, {"which option", 5.2},
+        {"what subcommand", 5.2}, {"which subcommand", 5.2},
     });
+    if ((contains_word(words, "what") || contains_word(words, "which")) &&
+        (contains_word(words, "flag") || contains_word(words, "option") ||
+         contains_word(words, "flags") || contains_word(words, "options"))) {
+        add_evidence(evidence, QueryFrame::Explain, 5.2, true, "syntax option question");
+    }
+    if ((contains_word(words, "what") || contains_word(words, "which")) &&
+        (contains_word(words, "subcommand") || contains_word(words, "subcommands"))) {
+        add_evidence(evidence, QueryFrame::Explain, 5.2, true, "syntax subcommand question");
+    }
 
     add_phrase_patterns(evidence, text, QueryFrame::Locate, {
         {"where is", 3.8}, {"where s", 3.8}, {"location of", 4.0}, {"path to", 4.0},
@@ -202,13 +221,18 @@ QueryFrameResult recognize_frame(const Query& query) {
         {"where do i monitor", 5.2}, {"what is using", 5.4}, {"what s using", 5.4},
         {"what is eating", 5.4}, {"what s eating", 5.4}, {"what is hogging", 5.4},
         {"what uses", 5.0}, {"who is using", 5.0}, {"show me", 3.2},
+        {"who owns", 5.2}, {"who tf owns", 5.2}, {"what owns", 5.0},
+        {"stole port", 4.8}, {"stolen port", 4.8},
+        {"ate all the space", 5.0}, {"eating all the space", 5.0},
+        {"ram hog", 4.8}, {"ram hogs", 4.8}, {"memory hog", 4.8},
     });
 
     add_phrase_patterns(evidence, text, QueryFrame::Modify, {
         {"where do i edit", 5.2}, {"where can i edit", 5.2},
         {"where do i change", 5.2}, {"where can i change", 5.2},
         {"where do i configure", 5.2}, {"how do i edit", 4.6},
-        {"how do i configure", 4.6},
+        {"how do i configure", 4.6}, {"make a fresh branch", 4.8},
+        {"make a new branch", 4.8}, {"create a branch", 4.8},
     });
 
     const bool entity_compare = entity_compare_shape(words, text);
@@ -236,9 +260,12 @@ QueryFrameResult recognize_frame(const Query& query) {
     };
 
     add_word_set(QueryFrame::Inspect, 2.8,
-                 {"show", "list", "view", "inspect", "monitor", "watch", "status", "check", "see"});
+                 {"show", "list", "view", "inspect", "monitor", "watch", "status", "check", "see",
+                  "owns", "owner", "hog", "hogs", "hogging", "ate", "eating"});
     add_word_set(QueryFrame::Modify, 3.1,
-                 {"edit", "modify", "change", "configure", "manage", "settings", "set"});
+                 {"edit", "modify", "change", "configure", "manage", "settings", "set",
+                  "create", "rename", "remove", "delete", "move", "switch", "enable",
+                  "disable"});
     if (entity_compare) {
         add_word_set(QueryFrame::Compare, 3.6,
                      {"compare", "comparing", "difference", "differences", "vs", "versus"});

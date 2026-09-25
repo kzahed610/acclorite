@@ -297,4 +297,32 @@ std::vector<Candidate> ManSource::search(const Query& query) const {
     return result;
 }
 
+std::vector<Candidate> ManSource::inspect_commands(
+    const Query& query,
+    const std::span<const std::string> commands
+) const {
+    if (commands.empty()) {
+        return {};
+    }
+
+    std::unordered_set<std::string> wanted(commands.begin(), commands.end());
+    std::vector<Candidate> result;
+    for (auto candidate : catalog()) {
+        if (!wanted.contains(candidate.command)) {
+            continue;
+        }
+        auto relevance = query::score_text(query, candidate.command, candidate.summary, 0.99, 0.93);
+        candidate.score = relevance.score;
+        candidate.semantic_fit = relevance.semantic_fit;
+        candidate.matched_terms = relevance.matched_terms;
+        if (query.explain_ranking) {
+            candidate.evidence_trace.push_back(ranking::opaque_evidence(
+                "man", "hinted exact command inspection", candidate.score
+            ));
+        }
+        result.push_back(std::move(candidate));
+    }
+    return result;
+}
+
 } // namespace acclorite

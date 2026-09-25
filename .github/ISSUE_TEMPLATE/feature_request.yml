@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest a focused improvement to Acclorite
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the user-facing gap before proposing an implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed behavior
+      description: What should Acclorite do differently?
+    validations:
+      required: true
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Product constraints
+      options:
+        - label: The proposal can preserve normal offline operation.
+        - label: The proposal does not require Acclorite to execute recommended commands.
+        - label: The proposal can preserve source-backed syntax/provenance boundaries.

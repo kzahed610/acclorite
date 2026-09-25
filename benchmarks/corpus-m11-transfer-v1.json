@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "name": "acclorite-m11-transfer-v1",
+  "description": "M11 transfer corpus sealed before Experiment G results. It uses different command families from research-v1/heldout-v1 to test whether bounded semantic retrieval support generalizes beyond repeatedly inspected benchmark capabilities.",
+  "cases": [
+    {"id":"canonicalize-path","query":"resolve this messy path into its absolute canonical location","tags":["m11","transfer","filesystem"],"expect":{"top1_any":["realpath"],"top3_any":["realpath"]}},
+    {"id":"symlink-target","query":"show where this symbolic link actually points","tags":["m11","transfer","filesystem"],"expect":{"top1_any":["readlink"],"top3_any":["readlink"]}},
+    {"id":"file-metadata","query":"show this file's size permissions timestamps and inode metadata","tags":["m11","transfer","filesystem","inspect"],"expect":{"top1_any":["stat"],"top3_any":["stat"]}},
+    {"id":"temporary-name","query":"create a safely unique temporary file or directory name","tags":["m11","transfer","filesystem"],"expect":{"top1_any":["mktemp"],"top3_any":["mktemp"]}},
+    {"id":"command-time-limit","query":"kill this command automatically if it runs longer than thirty seconds","tags":["m11","transfer","process"],"expect":{"top1_any":["timeout"],"top3_any":["timeout"]}},
+    {"id":"start-lower-priority","query":"start this program with less cpu scheduling priority","tags":["m11","transfer","process"],"expect":{"top1_any":["nice"],"top3_any":["nice"]}},
+    {"id":"change-running-priority","query":"change the scheduling priority of a process that is already running","tags":["m11","transfer","process"],"expect":{"top1_any":["renice"],"top3_any":["renice"]}},
+    {"id":"pin-cpu-cores","query":"restrict a process so it can run only on selected cpu cores","tags":["m11","transfer","process","cpu"],"expect":{"top1_any":["taskset"],"top3_any":["taskset"]}},
+    {"id":"serialize-with-lock","query":"run a command only while holding an exclusive file lock","tags":["m11","transfer","process","filesystem"],"expect":{"top1_any":["flock"],"top3_any":["flock"]}},
+    {"id":"list-namespaces","query":"list the linux namespaces currently present on the system","tags":["m11","transfer","process","namespace"],"expect":{"top1_any":["lsns"],"top3_any":["lsns"]}},
+    {"id":"enter-namespace","query":"enter the namespaces belonging to another running process","tags":["m11","transfer","process","namespace"],"expect":{"top1_any":["nsenter"],"top3_any":["nsenter"]}},
+    {"id":"new-namespace","query":"launch a program inside a new isolated linux namespace","tags":["m11","transfer","process","namespace"],"expect":{"top1_any":["unshare"],"top3_any":["unshare"]}},
+    {"id":"system-uptime-load","query":"tell me how long the machine has been running and its load averages","tags":["m11","transfer","system"],"expect":{"top1_any":["uptime"],"top3_any":["uptime"]}},
+    {"id":"memory-summary","query":"show used available and free system memory","tags":["m11","transfer","system","memory"],"expect":{"top1_any":["free"],"top3_any":["free"]}},
+    {"id":"virtual-memory-stats","query":"continuously report virtual memory paging cpu and process statistics","tags":["m11","transfer","system","memory"],"expect":{"top1_any":["vmstat"],"top3_any":["vmstat"]}},
+    {"id":"translate-characters","query":"convert lowercase letters arriving on stdin into uppercase","tags":["m11","transfer","text"],"expect":{"top1_any":["tr"],"top3_any":["tr"]}},
+    {"id":"paste-columns","query":"combine corresponding lines from two files side by side","tags":["m11","transfer","text"],"expect":{"top1_any":["paste"],"top3_any":["paste"]}},
+    {"id":"join-keyed-files","query":"merge two sorted text files by a shared key field","tags":["m11","transfer","text"],"expect":{"top1_any":["join"],"top3_any":["join"]}},
+    {"id":"duplicate-output","query":"copy stdin to the terminal and a file at the same time","tags":["m11","transfer","text"],"expect":{"top1_any":["tee"],"top3_any":["tee"]}},
+    {"id":"number-lines","query":"print text with a line number in front of each line","tags":["m11","transfer","text"],"expect":{"top1_any":["nl"],"top3_any":["nl"]}},
+    {"id":"shuffle-lines","query":"randomize the order of the input lines","tags":["m11","transfer","text"],"expect":{"top1_any":["shuf"],"top3_any":["shuf"]}},
+    {"id":"number-sequence","query":"generate a sequence of integers from one through one hundred","tags":["m11","transfer","text","numbers"],"expect":{"top1_any":["seq"],"top3_any":["seq"]}},
+    {"id":"reverse-lines","query":"print a file starting from its last line and working upward","tags":["m11","transfer","text"],"expect":{"top1_any":["tac"],"top3_any":["tac"]}},
+    {"id":"wrap-text-width","query":"wrap long input lines so none exceed a chosen column width","tags":["m11","transfer","text"],"expect":{"top1_any":["fold"],"top3_any":["fold"]}},
+    {"id":"identity-groups","query":"show my numeric user id group id and group memberships","tags":["m11","transfer","identity"],"expect":{"top1_any":["id"],"top3_any":["id"]}},
+    {"id":"environment-values","query":"print the environment variables available to this process","tags":["m11","transfer","process","environment"],"expect":{"top1_any":["printenv","env"],"top3_any":["printenv","env"]}}
+  ]
+}

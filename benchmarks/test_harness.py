@@ -91,6 +91,75 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual("wrong-tool", details[0]["command"])
         self.assertEqual(["scope-role"], details[0]["semantic_adjustments"])
 
+
+    def test_actionable_assertions_are_structural(self) -> None:
+        case = {
+            "id": "curl-follow",
+            "query": "curl keeps stopping at redirects make it follow them",
+            "tags": [],
+            "expect": {
+                "action_target_kind": "option",
+                "action_target_command": "curl",
+                "action_target_terms_all": ["follow", "redirect"],
+                "actionable_present": True,
+                "actionable_command": "curl",
+                "actionable_option_any": ["-L", "--location", "--follow"],
+                "actionable_safety": "Unknown",
+                "invocation_present": True,
+                "invocation_complete": False,
+                "invocation_command": "curl",
+                "invocation_arguments": ["--location", "<URL>"],
+                "invocation_arguments_all": ["--location", "<URL>"],
+                "invocation_placeholder_count": 1,
+            },
+        }
+        payload = {
+            "query_frame": {"type": "Explain"},
+            "confidence": {"ambiguity": "clear", "top_candidate": 0.9},
+            "action_target": {
+                "kind": "option",
+                "command": "curl",
+                "literal": None,
+                "terms": ["follow", "redirect"],
+                "explicit_syntax": False,
+            },
+            "actionable_answer": {
+                "command": "curl",
+                "invocation": {
+                    "command": "curl",
+                    "arguments": ["--location", "<URL>"],
+                    "segments": [
+                        {"value": "--location", "placeholder": False},
+                        {"value": "<URL>", "placeholder": True},
+                    ],
+                    "complete": False,
+                },
+                "relevant_options": [{"names": ["-L", "--location"]}],
+                "relevant_subcommands": [],
+                "safety": "Unknown",
+            },
+            "results": [{"command": "curl"}],
+        }
+        result = bench.evaluate(case, payload, 0, 10.0)
+        self.assertTrue(result.passed)
+
+    def test_targets_none_catches_fake_named_target(self) -> None:
+        case = {
+            "id": "unknown-command",
+            "query": "what is that command that extracts tarballs",
+            "tags": [],
+            "expect": {"targets_none": True},
+        }
+        payload = {
+            "query_frame": {"type": "Discover"},
+            "confidence": {"ambiguity": "clear", "top_candidate": 0.8},
+            "targets": ["that"],
+            "results": [{"command": "tar"}],
+        }
+        result = bench.evaluate(case, payload, 0, 10.0)
+        self.assertFalse(result.passed)
+        self.assertEqual("targets_none", result.assertions[0].name)
+
     def test_report_metrics_are_assertion_scoped(self) -> None:
         passed = bench.CaseResult(
             case_id="a", query="a", tags=[], return_code=0, latency_ms=10.0,

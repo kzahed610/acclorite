@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <fcntl.h>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -15,6 +16,9 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include <sys/file.h>
+#include <unistd.h>
 
 #include <sqlite3.h>
 
@@ -354,6 +358,49 @@ Database open_database(const std::filesystem::path& path) {
     }
     sqlite3_busy_timeout(db.get(), 1500);
     return db;
+}
+
+class RebuildLock final {
+public:
+    explicit RebuildLock(const std::filesystem::path& path) {
+        fd_ = ::open(path.c_str(), O_CREAT | O_RDWR | O_CLOEXEC, 0600);
+        if (fd_ >= 0 && ::flock(fd_, LOCK_EX) == 0) {
+            locked_ = true;
+        }
+    }
+
+    ~RebuildLock() {
+        if (fd_ >= 0) {
+            if (locked_) {
+                ::flock(fd_, LOCK_UN);
+            }
+            ::close(fd_);
+        }
+    }
+
+    RebuildLock(const RebuildLock&) = delete;
+    RebuildLock& operator=(const RebuildLock&) = delete;
+
+    [[nodiscard]] bool locked() const { return locked_; }
+
+private:
+    int fd_{-1};
+    bool locked_{false};
+};
+
+std::filesystem::path rebuild_lock_path(const std::filesystem::path& path) {
+    return path.string() + ".rebuild.lock";
+}
+
+std::filesystem::path staging_database_path(const std::filesystem::path& path) {
+    return path.string() + ".rebuild";
+}
+
+void remove_database_artifacts(const std::filesystem::path& path) {
+    std::error_code ignored;
+    std::filesystem::remove(path, ignored);
+    std::filesystem::remove(path.string() + "-wal", ignored);
+    std::filesystem::remove(path.string() + "-shm", ignored);
 }
 
 bool exec(sqlite3* db, const char* sql) {
@@ -793,19 +840,31 @@ bool IndexSource::rebuild() const {
         return false;
     }
 
-    // A cache database is disposable. Rebuilding into a clean file also makes schema
-    // migration failure recovery trivial during development.
-    std::filesystem::remove(path, error);
-    std::filesystem::remove(path.string() + "-wal", error);
-    std::filesystem::remove(path.string() + "-shm", error);
+    // Rebuilds are serialized across Acclorite processes. The lock file is deliberately
+    // persistent: unlinking a lock file while another process is waiting on its inode can
+    // split future lockers across two different files.
+    RebuildLock lock(rebuild_lock_path(path));
+    if (!lock.locked()) {
+        return false;
+    }
 
-    auto db = open_database(path);
+    const auto staging = staging_database_path(path);
+    remove_database_artifacts(staging);
+
+    // Build a complete replacement beside the live index. The last known-good database
+    // remains untouched until the replacement has committed, checkpointed, and passed a
+    // read-only schema/content validation.
+    auto db = open_database(staging);
     if (!db || !initialize_schema(db.get())) {
+        db.reset();
+        remove_database_artifacts(staging);
         return false;
     }
 
     const auto records = collect_records();
     if (records.empty()) {
+        db.reset();
+        remove_database_artifacts(staging);
         return false;
     }
 
@@ -813,7 +872,42 @@ bool IndexSource::rebuild() const {
     // describes the state that was actually indexed.
     const auto fingerprints = current_fingerprints();
     const auto quick_fingerprints = current_quick_fingerprints();
-    return write_records(db.get(), records, fingerprints, quick_fingerprints);
+    if (!write_records(db.get(), records, fingerprints, quick_fingerprints)) {
+        db.reset();
+        remove_database_artifacts(staging);
+        return false;
+    }
+
+    // A staged database must be a self-contained single file before promotion. This
+    // checkpoints the build-time WAL and returns the database to rollback-journal mode so
+    // no staging sidecar can be orphaned or mistaken for the promoted snapshot.
+    if (!exec(db.get(), "PRAGMA wal_checkpoint(TRUNCATE);") ||
+        !exec(db.get(), "PRAGMA journal_mode=DELETE;")) {
+        db.reset();
+        remove_database_artifacts(staging);
+        return false;
+    }
+    db.reset();
+
+    auto validation = open_database_readonly(staging);
+    if (!validation || !schema_ready(validation.get())) {
+        validation.reset();
+        remove_database_artifacts(staging);
+        return false;
+    }
+    validation.reset();
+
+    // On Linux/POSIX, renaming a sibling regular file over the live path atomically
+    // replaces the directory entry. Readers that already opened the previous snapshot
+    // can finish using it; later readers see only the fully validated replacement.
+    std::filesystem::rename(staging, path, error);
+    if (error) {
+        remove_database_artifacts(staging);
+        return false;
+    }
+
+    remove_database_artifacts(staging);
+    return true;
 }
 
 bool IndexSource::ensure_ready() const {
@@ -833,6 +927,85 @@ bool IndexSource::available() const {
     }
     ready_hint_ = ensure_ready();
     return ready_hint_;
+}
+
+std::vector<Candidate> IndexSource::inspect_commands(
+    const Query& query,
+    const std::span<const std::string> commands
+) const {
+    if (commands.empty() || !ensure_ready()) {
+        return {};
+    }
+
+    auto db = open_database(database_path());
+    if (!db) {
+        return {};
+    }
+
+    auto statement = prepare(
+        db.get(),
+        "SELECT command, summary, search_text, path, source, installed, "
+        "repository_available, cli_capable, gui_capable "
+        "FROM tools_fts WHERE command=? LIMIT 1"
+    );
+    if (!statement) {
+        return {};
+    }
+
+    std::vector<Candidate> result;
+    result.reserve(commands.size());
+    for (const auto& requested : commands) {
+        sqlite3_reset(statement.get());
+        sqlite3_clear_bindings(statement.get());
+        sqlite3_bind_text(statement.get(), 1, requested.c_str(), -1, SQLITE_TRANSIENT);
+        if (sqlite3_step(statement.get()) != SQLITE_ROW) {
+            continue;
+        }
+
+        const std::string command = text_column(statement.get(), 0);
+        if (command != requested) {
+            continue;
+        }
+        const std::string summary = text_column(statement.get(), 1);
+        const std::string search_text = text_column(statement.get(), 2);
+        auto relevance = query::score_text(query, command, search_text, 0.99, 0.96);
+        const std::string indexed_sources = text_column(statement.get(), 4);
+
+        Candidate candidate{
+            .command = command,
+            .path = text_column(statement.get(), 3),
+            .summary = summary,
+            .source = indexed_sources,
+            .package = {},
+            .repository = {},
+            .package_version = {},
+            .installed = sqlite3_column_int(statement.get(), 5) != 0,
+            .repository_available = sqlite3_column_int(statement.get(), 6) != 0,
+            .cli_capable = sqlite3_column_int(statement.get(), 7) != 0,
+            .gui_capable = sqlite3_column_int(statement.get(), 8) != 0,
+            .matched_terms = relevance.matched_terms,
+            .provided_commands = {},
+            .descriptive_evidence = {},
+            .examples = {},
+            .learning_resources = {},
+            .evidence_trace = {},
+            .base_merge_trace = {},
+            .semantic_fit = relevance.semantic_fit,
+            .score = relevance.score,
+            .ranking = std::nullopt,
+        };
+        if (query.explain_ranking) {
+            candidate.evidence_trace.push_back(ranking::semantic_evidence(
+                "index[" + indexed_sources + "]",
+                "hinted exact indexed command inspection",
+                relevance,
+                {},
+                candidate.score
+            ));
+        }
+        result.push_back(std::move(candidate));
+    }
+    return result;
 }
 
 std::vector<Candidate> IndexSource::search(const Query& query) const {
@@ -897,7 +1070,7 @@ std::vector<Candidate> IndexSource::search(const Query& query) const {
             .repository_available = sqlite3_column_int(statement.get(), 6) != 0,
             .cli_capable = sqlite3_column_int(statement.get(), 7) != 0,
             .gui_capable = sqlite3_column_int(statement.get(), 8) != 0,
-            .matched_terms = std::move(relevance.matched_terms),
+            .matched_terms = relevance.matched_terms,
             .provided_commands = {},
             .descriptive_evidence = {},
                 .examples = {},

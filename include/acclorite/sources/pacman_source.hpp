@@ -6,14 +6,16 @@
 #include <string_view>
 #include <vector>
 
-#include "acclorite/sources/source.hpp"
+#include "acclorite/sources/package_backend.hpp"
 
 namespace acclorite {
 
-class PacmanSource final : public KnowledgeSource {
+class PacmanSource final : public PackageBackend {
 public:
     [[nodiscard]] bool available() const override;
     [[nodiscard]] std::string_view diagnostic_name() const override { return "arch-packages"; }
+    [[nodiscard]] PackageFamily package_family() const override { return PackageFamily::Arch; }
+    [[nodiscard]] std::string_view backend_id() const override { return "pacman"; }
     [[nodiscard]] std::vector<Candidate> search(const Query& query) const override;
 
 private:

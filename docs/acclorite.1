@@ -1,0 +1,110 @@
+.TH ACCLORITE 1 "September 2026" "Acclorite 0.3.3" "User Commands"
+.SH NAME
+acclorite \- local-first deterministic Linux tool discovery
+.SH SYNOPSIS
+.B acclorite
+.RI [ options ] " query ..."
+.br
+.B acclorite
+.RI [ --json ] " doctor"
+.br
+.B acclorite --reindex
+.br
+.B acclorite
+.RI [ --json ] " --capabilities"
+.SH DESCRIPTION
+Acclorite turns task-oriented Linux questions into ranked tool recommendations using local executable, manual, desktop, package, and optional local guidance metadata. The normal runtime is deterministic, non-interactive, local-first, and offline.
+.PP
+Human terminal output includes the interpreted query frame, the primary candidate, local guidance, confidence, and clarifications when the query is ambiguous. Machine clients should use
+.B --json
+and
+.B --capabilities
+rather than parsing human output.
+.PP
+On Fedora/RHEL-family systems, the DNF package backend prefers dnf5 and falls back to dnf. All DNF repository queries are invoked with --cacheonly; Acclorite does not refresh repository metadata or perform package transactions.
+.PP
+On openSUSE-family systems, the Zypper package backend uses machine-readable XML search with --no-refresh and a bundled read-only configuration that disables the optional zypper-search-packages extended lookup. Acclorite does not refresh repositories or perform Zypper transactions.
+.PP
+On Void Linux, the XBPS backend searches synchronized on-disk repository indexes with xbps-query and never enables -M/--memory-sync. Acclorite never invokes xbps-install or another XBPS transaction frontend; xbps-uhelper is used only to decode package-version metadata.
+.SH OPTIONS
+.TP
+.B --json
+Emit stable machine-readable JSON for search or Doctor.
+.TP
+.B --explain-ranking
+Include ranking evidence and score adjustments in human or JSON search output.
+.TP
+.B --profile
+Include internal search-stage timings.
+.TP
+.B --capabilities
+Emit the machine capability document, including schema versions and stable exit codes.
+.TP
+.B --reindex
+Rebuild the local persistent search index. Rebuilds are staged and validated before atomically replacing the live index; a failed rebuild preserves the previous usable snapshot.
+.TP
+.BR -h , " --help"
+Show help.
+.TP
+.BR -V , " --version"
+Print the Acclorite version.
+.TP
+.B --
+Stop option parsing; remaining arguments are query text.
+.SH COMMANDS
+.TP
+.B doctor
+Inspect local readiness without modifying the system. Doctor never refreshes package databases, installs software, rebuilds the index, or updates TLDR metadata.
+.SH FILES
+.TP
+.I $XDG_CACHE_HOME/acclorite/index.db
+Persistent local FTS index. Defaults to
+.I ~/.cache/acclorite/index.db
+when XDG_CACHE_HOME is unset.
+.TP
+.I /usr/share/acclorite/curated-guidance.tsv
+Typical system location of the bundled curated offline guidance corpus. Acclorite also supports relocated installation prefixes by resolving this data relative to its executable.
+.TP
+.I /usr/share/acclorite/zypper-readonly.conf
+Bundled query-only Zypper policy used by the openSUSE backend. It disables the optional extended search-packages hook so normal Acclorite repository discovery remains local.
+.SH ENVIRONMENT
+.TP
+.B NO_COLOR
+Disable ANSI styling in interactive human output.
+.TP
+.B XDG_CACHE_HOME
+Override the base directory used for Acclorite caches.
+.TP
+.B ACCLORITE_CURATED_GUIDANCE
+Explicitly override the curated guidance TSV. Override data is marked with local override provenance rather than Acclorite-project provenance.
+.TP
+.B ACCLORITE_OS_RELEASE
+Override the path used for distro-family detection instead of /etc/os-release. This is intended for controlled environments, tests, chroots, and packaging validation rather than ordinary user configuration.
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 1
+Valid search completed but produced no result.
+.TP
+.B 2
+Invalid invocation or CLI usage error.
+.TP
+.B 3
+Operational failure.
+.TP
+.B 4
+Doctor completed and found a fundamental broken-state diagnostic.
+.SH EXAMPLES
+.nf
+acclorite "search text inside files"
+acclorite "what is rg"
+acclorite "where is ssh config"
+acclorite "difference between rg and grep"
+acclorite doctor
+.fi
+.SH SEE ALSO
+The installed Acclorite documentation and machine-interface contract under the package documentation directory.
+.SH LICENSE
+Acclorite is free software licensed under GPL-3.0-or-later.

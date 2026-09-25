@@ -195,4 +195,30 @@ std::vector<Candidate> PathSource::search(const Query& query) const {
     return result;
 }
 
+std::vector<Candidate> PathSource::inspect_commands(
+    const Query& query,
+    const std::span<const std::string> commands
+) const {
+    if (commands.empty()) {
+        return {};
+    }
+
+    std::unordered_set<std::string> wanted(commands.begin(), commands.end());
+    std::vector<Candidate> result;
+    for (auto candidate : catalog()) {
+        if (!wanted.contains(candidate.command)) {
+            continue;
+        }
+        candidate.score = score_name(query, candidate.command);
+        candidate.semantic_fit = candidate.score;
+        if (query.explain_ranking) {
+            candidate.evidence_trace.push_back(ranking::opaque_evidence(
+                "path", "hinted exact command inspection", candidate.score
+            ));
+        }
+        result.push_back(std::move(candidate));
+    }
+    return result;
+}
+
 } // namespace acclorite

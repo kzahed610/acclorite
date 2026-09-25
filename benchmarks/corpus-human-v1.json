@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "name": "acclorite-human-language-v1",
+  "description": "Adversarial human-language benchmark for incomplete recall, slang, filler, typos, implied operations, and syntax requests that do not use Acclorite's ontology words. This corpus is additive; corpus-v1.json remains the frozen discovery regression gate.",
+  "cases": [
+    {
+      "id": "unknown-command-extract-targz",
+      "query": "What is that command that can extract tar.gz files in terminal",
+      "tags": ["human", "implicit-tool", "archive", "filler"],
+      "expect": {
+        "top1_any": ["tar", "bsdtar", "ark"],
+        "top3_any": ["tar", "bsdtar", "ark"],
+        "frame": "Discover",
+        "targets_none": true
+      }
+    },
+    {
+      "id": "downloaded-targz-unpack",
+      "query": "i downloaded some .tar.gz thing how tf do i unpack it",
+      "tags": ["human", "slang", "implicit-tool", "archive"],
+      "expect": {
+        "top1_any": ["tar", "bsdtar", "ark"],
+        "top3_any": ["tar", "bsdtar", "ark"],
+        "frame": "Discover"
+      }
+    },
+    {
+      "id": "compress-directory-one-file",
+      "query": "got a directory and need to turn it into one compressed file from terminal",
+      "tags": ["human", "implicit-tool", "archive"],
+      "expect": {
+        "top1_any": ["tar", "zip", "7z", "7zz", "ark"],
+        "top3_any": ["tar", "zip", "7z", "7zz", "ark"]
+      }
+    },
+    {
+      "id": "disk-full-what-ate-it",
+      "query": "my drive is full what the hell ate all the space",
+      "tags": ["human", "slang", "storage", "implicit-tool"],
+      "expect": {
+        "top1_any": ["duf", "ncdu", "gdu", "dua", "pdu", "du", "btop"],
+        "top3_any": ["duf", "ncdu", "gdu", "dua", "pdu", "du", "btop"],
+        "frame": "Inspect"
+      }
+    },
+    {
+      "id": "port-stolen-8080",
+      "query": "what terminal thing tells me which process stole port 8080",
+      "tags": ["human", "metaphor", "network", "implicit-tool"],
+      "expect": {
+        "top1_any": ["fuser", "ss", "lsof"],
+        "top3_any": ["fuser", "ss", "lsof"],
+        "frame": "Inspect"
+      }
+    },
+    {
+      "id": "disk-exploding-large-files",
+      "query": "need to hunt down giant files before my disk explodes",
+      "tags": ["human", "slang", "files", "storage"],
+      "expect": {
+        "top1_any": ["find", "du", "ncdu", "gdu", "dua", "dust", "fd"],
+        "top3_any": ["find", "du", "ncdu", "gdu", "dua", "dust", "fd"]
+      }
+    },
+    {
+      "id": "grep-everything-todo",
+      "query": "grep through everything under this folder for TODO",
+      "tags": ["human", "verb-as-tool", "search"],
+      "expect": {
+        "top1_any": ["rg", "grep"],
+        "top3_any": ["rg", "grep"]
+      }
+    },
+    {
+      "id": "compare-dirs-whats-different",
+      "query": "what can compare these two directories and tell me what's different",
+      "tags": ["human", "files", "compare"],
+      "expect": {
+        "top1_any": ["diff", "meld", "rsync", "kompare"],
+        "top3_any": ["diff", "meld", "rsync", "kompare"],
+        "frame": "Discover"
+      }
+    },
+    {
+      "id": "rename-five-hundred-files",
+      "query": "i have like 500 files and need to rename all of them",
+      "tags": ["human", "files", "bulk"],
+      "expect": {
+        "top1_any": ["rename", "perl-rename", "mmv", "qmv", "vidir"],
+        "top3_any": ["rename", "perl-rename", "mmv", "qmv", "vidir"]
+      }
+    },
+    {
+      "id": "png-to-jpg-bunch",
+      "query": "turn a bunch of png files into jpg from terminal",
+      "tags": ["human", "media", "conversion"],
+      "expect": {
+        "top1_any": ["magick", "convert", "mogrify", "gm", "vips", "ffmpeg"],
+        "top3_any": ["magick", "convert", "mogrify", "gm", "vips", "ffmpeg"]
+      }
+    },
+    {
+      "id": "duplicate-files-again",
+      "query": "what's that terminal thing for finding duplicate files again",
+      "tags": ["human", "memory", "files"],
+      "expect": {
+        "top1_any": ["fdupes", "rdfind", "fclones", "jdupes"],
+        "top3_any": ["fdupes", "rdfind", "fclones", "jdupes"],
+        "frame": "Discover",
+        "targets_none": true
+      }
+    },
+    {
+      "id": "connections-on-this-box",
+      "query": "need to see open connections on this box",
+      "tags": ["human", "network", "inspect"],
+      "expect": {
+        "top1_any": ["ss", "lsof", "netstat"],
+        "top3_any": ["ss", "lsof", "netstat"],
+        "frame": "Inspect"
+      }
+    },
+    {
+      "id": "rg-dotfiles-without-flag-word",
+      "query": "rg is skipping dotfiles, make it search them too",
+      "tags": ["human", "implicit-syntax", "option", "search"],
+      "expect": {
+        "top1_any": ["rg"],
+        "top3_any": ["rg"],
+        "action_target_kind": "option",
+        "action_target_command": "rg",
+        "actionable_present": true,
+        "actionable_command": "rg",
+        "actionable_option_any": ["--hidden", "-."]
+      }
+    },
+    {
+      "id": "curl-3xx-follow-without-flag-word",
+      "query": "curl keeps getting 3xx responses and stopping, make it follow the redirect",
+      "tags": ["human", "implicit-syntax", "option", "network"],
+      "expect": {
+        "top1_any": ["curl"],
+        "top3_any": ["curl"],
+        "action_target_kind": "option",
+        "action_target_command": "curl",
+        "actionable_present": true,
+        "actionable_command": "curl",
+        "actionable_option_any": ["--follow", "-L", "--location"]
+      }
+    },
+    {
+      "id": "git-branch-and-go-there",
+      "query": "git make a fresh branch called feature/foo and put me on it",
+      "tags": ["human", "implicit-syntax", "multi-action", "git"],
+      "expect": {
+        "top1_any": ["git"],
+        "top3_any": ["git"],
+        "frame": "Modify"
+      }
+    },
+    {
+      "id": "systemctl-nginx-status-natural",
+      "query": "systemctl show me what nginx is doing",
+      "tags": ["human", "implicit-syntax", "subcommand", "systemd"],
+      "expect": {
+        "top1_any": ["systemctl"],
+        "top3_any": ["systemctl"],
+        "frame": "Inspect",
+        "action_target_kind": "subcommand",
+        "action_target_command": "systemctl",
+        "actionable_present": true,
+        "actionable_command": "systemctl",
+        "actionable_subcommand_any": ["status"]
+      }
+    },
+    {
+      "id": "ffmpeg-start-thirty-seconds",
+      "query": "ffmpeg start reading this video from 30 seconds in",
+      "tags": ["human", "implicit-syntax", "option", "media"],
+      "expect": {
+        "top1_any": ["ffmpeg"],
+        "top3_any": ["ffmpeg"],
+        "action_target_kind": "option",
+        "action_target_command": "ffmpeg",
+        "actionable_present": true,
+        "actionable_command": "ffmpeg",
+        "actionable_option_any": ["-ss"]
+      }
+    },
+    {
+      "id": "rg-todo-ignore-build",
+      "query": "rg search TODO here but don't go into build",
+      "tags": ["human", "implicit-syntax", "option", "search"],
+      "expect": {
+        "top1_any": ["rg"],
+        "top3_any": ["rg"]
+      }
+    },
+    {
+      "id": "typo-unzipz-targz",
+      "query": "wht cmd unzipz targz",
+      "tags": ["human", "typo", "archive", "shorthand"],
+      "expect": {
+        "top1_any": ["tar", "bsdtar", "ark"],
+        "top3_any": ["tar", "bsdtar", "ark"]
+      }
+    },
+    {
+      "id": "who-tf-owns-port",
+      "query": "who tf owns port 3000",
+      "tags": ["human", "slang", "network"],
+      "expect": {
+        "top1_any": ["fuser", "ss", "lsof"],
+        "top3_any": ["fuser", "ss", "lsof"],
+        "frame": "Inspect"
+      }
+    },
+    {
+      "id": "ram-hogs-command",
+      "query": "which cmd shows me the ram hogs",
+      "tags": ["human", "slang", "process"],
+      "expect": {
+        "top1_any": ["btop", "htop", "top", "ps"],
+        "top3_any": ["btop", "htop", "top", "ps"],
+        "frame": "Inspect"
+      }
+    },
+    {
+      "id": "folder-size-readable",
+      "query": "need a command for folder size but readable not raw bytes",
+      "tags": ["human", "storage", "files"],
+      "expect": {
+        "top1_any": ["du", "duf", "ncdu", "gdu", "dua", "dust", "pdu"],
+        "top3_any": ["du", "duf", "ncdu", "gdu", "dua", "dust", "pdu"]
+      }
+    },
+    {
+      "id": "tarball-command-again",
+      "query": "what was that command for extracting a tarball again",
+      "tags": ["human", "memory", "archive", "implicit-tool"],
+      "expect": {
+        "top1_any": ["tar", "bsdtar", "ark"],
+        "top3_any": ["tar", "bsdtar", "ark"],
+        "frame": "Discover",
+        "targets_none": true
+      }
+    },
+    {
+      "id": "file-contents-not-filenames",
+      "query": "the thing that recursively searches inside file contents not filenames",
+      "tags": ["human", "implicit-tool", "search", "contrast"],
+      "expect": {
+        "top1_any": ["rg", "grep"],
+        "top3_any": ["rg", "grep"]
+      }
+    },
+    {
+      "id": "watch-cpu-live-something",
+      "query": "something that can watch cpu usage live",
+      "tags": ["human", "implicit-tool", "process"],
+      "expect": {
+        "top1_any": ["btop", "htop", "top", "watch", "mpstat", "atop"],
+        "top3_any": ["btop", "htop", "top", "watch", "mpstat", "atop"]
+      }
+    }
+  ]
+}

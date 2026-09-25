@@ -59,7 +59,7 @@ def test_capabilities(binary: Path) -> None:
     payload = json.loads(proc.stdout)
 
     require(payload["capabilities_schema_version"] == 1, "capabilities schema must start at 1")
-    require(payload["acclorite_version"] == "0.2.6", "capabilities must expose the binary version")
+    require(payload["acclorite_version"] == "0.3.3", "capabilities must expose the binary version")
     require(payload["search_schema_version"] == 15, "capabilities must expose search schema 15")
     require(payload["doctor_schema_version"] == 1, "capabilities must expose doctor schema 1")
     require(payload["offline_runtime"] is True, "normal runtime must declare offline operation")
@@ -82,7 +82,7 @@ def test_capabilities(binary: Path) -> None:
         require(isinstance(payload["build"][key], bool), f"build.{key} must be boolean")
     for key in (
         "manual_guidance", "info_guidance", "tldr_cache", "curated_guidance",
-        "arch_packages", "pkgfile",
+        "arch_packages", "apt_packages", "dnf_packages", "zypper_packages", "xbps_packages", "pkgfile",
     ):
         require(isinstance(payload["integrations"][key], bool), f"integrations.{key} must be boolean")
 
@@ -90,6 +90,268 @@ def test_capabilities(binary: Path) -> None:
     require(redundant_json.returncode == SUCCESS, "--json --capabilities must remain accepted")
     require(json.loads(redundant_json.stdout)["capabilities_schema_version"] == 1,
             "--json --capabilities must emit the same JSON contract")
+
+
+def test_debian_backend_autoselection(binary: Path) -> None:
+    with tempfile.TemporaryDirectory(prefix="acclorite-cli-apt-backend-") as tmp:
+        root = Path(tmp)
+        fixture_bin = root / "bin"
+        fixture_bin.mkdir(parents=True)
+
+        apt_cache = fixture_bin / "apt-cache"
+        apt_cache.write_text(
+            "#!/bin/sh\n"
+            "if [ \"$1\" = \"stats\" ]; then\n"
+            "  printf '%s\\n' 'Total package names: 123'\n"
+            "  exit 0\n"
+            "fi\n"
+            "if [ \"$1\" = \"search\" ]; then\n"
+            "  printf '%s\\n' 'fdupes - identify duplicate files in directories'\n"
+            "  exit 0\n"
+            "fi\n"
+            "exit 2\n",
+            encoding="utf-8",
+        )
+        apt_cache.chmod(apt_cache.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+        os_release = root / "os-release"
+        os_release.write_text('ID=ubuntu\nID_LIKE="debian"\n', encoding="utf-8")
+        env = isolated_env(root, fixture_bin)
+        env["ACCLORITE_OS_RELEASE"] = str(os_release)
+
+        capabilities = run(binary, "--capabilities", env=env)
+        require(capabilities.returncode == SUCCESS, "Debian capability probe must exit 0")
+        payload = json.loads(capabilities.stdout)
+        require(payload["integrations"]["apt_packages"] is True,
+                "Ubuntu fixture must activate the APT package backend")
+        require(payload["integrations"]["arch_packages"] is False,
+                "Ubuntu fixture must not activate the Arch package backend")
+        require(payload["integrations"]["dnf_packages"] is False,
+                "Ubuntu fixture must not activate the DNF package backend")
+        require(payload["integrations"]["zypper_packages"] is False,
+                "Ubuntu fixture must not activate the Zypper package backend")
+        require(payload["integrations"]["xbps_packages"] is False,
+                "Ubuntu fixture must not activate the XBPS package backend")
+
+        search = run(binary, "--json", "duplicate files", env=env)
+        require(search.returncode == SUCCESS, "Debian package discovery query must succeed")
+        search_json = json.loads(search.stdout)
+        require(search_json["results"] and search_json["results"][0]["command"] == "fdupes",
+                "APT backend should discover an uninstalled repository tool")
+        require("apt" in search_json["results"][0]["source"].split("+"),
+                "APT discovery must retain package provenance")
+
+
+
+def test_fedora_backend_autoselection(binary: Path) -> None:
+    with tempfile.TemporaryDirectory(prefix="acclorite-cli-dnf-backend-") as tmp:
+        root = Path(tmp)
+        fixture_bin = root / "bin"
+        fixture_bin.mkdir(parents=True)
+        marker = root / "forbidden-dnf-call"
+
+        dnf5 = fixture_bin / "dnf5"
+        dnf5.write_text(
+            "#!/bin/sh\n"
+            "if [ \"$1\" != \"--cacheonly\" ]; then\n"
+            f"  printf x > '{marker}'\n"
+            "  exit 99\n"
+            "fi\n"
+            "shift\n"
+            "if [ \"$1\" = \"search\" ]; then\n"
+            "  printf '%s\\n' 'fdupes.x86_64 : identify duplicate files in directories'\n"
+            "  exit 0\n"
+            "fi\n"
+            "if [ \"$1\" = \"repoquery\" ]; then\n"
+            "  printf '%s\\n' 'fdupes\t2.3.0-6.fc42\tfedora\tidentify duplicate files in directories'\n"
+            "  printf '%s\\n' 'rpm\t4.19.1.1-3.fc42\tfedora\tRPM package manager'\n"
+            "  exit 0\n"
+            "fi\n"
+            f"printf x > '{marker}'\n"
+            "exit 99\n",
+            encoding="utf-8",
+        )
+        dnf5.chmod(dnf5.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+        os_release = root / "os-release"
+        os_release.write_text('ID=fedora\nID_LIKE="rhel"\n', encoding="utf-8")
+        env = isolated_env(root, fixture_bin)
+        env["ACCLORITE_OS_RELEASE"] = str(os_release)
+
+        capabilities = run(binary, "--capabilities", env=env)
+        require(capabilities.returncode == SUCCESS, "Fedora capability probe must exit 0")
+        payload = json.loads(capabilities.stdout)
+        require(payload["integrations"]["dnf_packages"] is True,
+                "Fedora fixture must activate the DNF package backend")
+        require(payload["integrations"]["arch_packages"] is False,
+                "Fedora fixture must not activate the Arch package backend")
+        require(payload["integrations"]["apt_packages"] is False,
+                "Fedora fixture must not activate the APT package backend")
+        require(payload["integrations"]["zypper_packages"] is False,
+                "Fedora fixture must not activate the Zypper package backend")
+        require(payload["integrations"]["xbps_packages"] is False,
+                "Fedora fixture must not activate the XBPS package backend")
+
+        search = run(binary, "--json", "duplicate files", env=env)
+        require(search.returncode == SUCCESS, "Fedora package discovery query must succeed")
+        search_json = json.loads(search.stdout)
+        require(search_json["results"] and search_json["results"][0]["command"] == "fdupes",
+                "DNF backend should discover an uninstalled repository tool")
+        require("dnf" in search_json["results"][0]["source"].split("+"),
+                "DNF discovery must retain package provenance")
+        require(not marker.exists(),
+                "Fedora backend must remain cache-only and avoid mutation command paths")
+
+
+
+def test_opensuse_backend_autoselection(binary: Path) -> None:
+    with tempfile.TemporaryDirectory(prefix="acclorite-cli-zypper-backend-") as tmp:
+        root = Path(tmp)
+        fixture_bin = root / "bin"
+        fixture_bin.mkdir(parents=True)
+        marker = root / "forbidden-zypper-call"
+
+        zypper = fixture_bin / "zypper"
+        zypper.write_text(
+            "#!/bin/sh\n"
+            "fail() { printf x > '" + str(marker) + "'; exit 99; }\n"
+            "case \" $* \" in *\" --no-refresh \"*) ;; *) fail ;; esac\n"
+            "case \" $* \" in *\" --non-interactive \"*) ;; *) fail ;; esac\n"
+            "case \" $* \" in *\" --xmlout \"*) ;; *) fail ;; esac\n"
+            "case \" $* \" in *\" --ignore-unknown \"*) ;; *) fail ;; esac\n"
+            "cfg=''\nprev=''\n"
+            "for arg in \"$@\"; do [ \"$prev\" = '--config' ] && cfg=\"$arg\"; prev=\"$arg\"; done\n"
+            "[ -n \"$cfg\" ] || fail\n"
+            "policy=0\n"
+            "while IFS= read -r line; do\n"
+            "  case \"$line\" in *runSearchPackages*never*) policy=1 ;; esac\n"
+            "done < \"$cfg\"\n"
+            "[ \"$policy\" = 1 ] || fail\n"
+            "case \" $* \" in *\" refresh \"*|*\" install \"*|*\" update \"*|*\" remove \"*) fail ;; esac\n"
+            "case \" $* \" in *\" search \"*) ;; *) fail ;; esac\n"
+            "case \" $* \" in\n"
+            "  *\" --details \"*)\n"
+            "    printf '%s\\n' '<stream><search-result><solvable-list>'\n"
+            "    printf '%s\\n' '<solvable status=\"not-installed\" name=\"fdupes\" kind=\"package\" edition=\"2.3.0-1.2\" arch=\"x86_64\" repository=\"repo-oss\"/>'\n"
+            "    printf '%s\\n' '<solvable status=\"installed\" name=\"rpm\" kind=\"package\" edition=\"4.20.1-1.1\" arch=\"x86_64\" repository=\"repo-oss\"/>'\n"
+            "    printf '%s\\n' '</solvable-list></search-result></stream>' ;;\n"
+            "  *)\n"
+            "    printf '%s\\n' '<stream><search-result><solvable-list><solvable status=\"not-installed\" name=\"fdupes\" summary=\"Identify duplicate files in directories\" kind=\"package\"/></solvable-list></search-result></stream>' ;;\n"
+            "esac\nexit 0\n",
+            encoding="utf-8",
+        )
+        zypper.chmod(zypper.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+        rpm = fixture_bin / "rpm"
+        rpm.write_text("#!/bin/sh\nprintf '%s\\n' 'rpm\t4.20.1-1.1'\nexit 0\n", encoding="utf-8")
+        rpm.chmod(rpm.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+        os_release = root / "os-release"
+        os_release.write_text('ID=opensuse-tumbleweed\nID_LIKE="suse opensuse"\n', encoding="utf-8")
+        env = isolated_env(root, fixture_bin)
+        env["ACCLORITE_OS_RELEASE"] = str(os_release)
+
+        capabilities = run(binary, "--capabilities", env=env)
+        require(capabilities.returncode == SUCCESS, "openSUSE capability probe must exit 0")
+        payload = json.loads(capabilities.stdout)
+        require(payload["integrations"]["zypper_packages"] is True,
+                "openSUSE fixture must activate the Zypper package backend")
+        require(payload["integrations"]["arch_packages"] is False,
+                "openSUSE fixture must not activate the Arch package backend")
+        require(payload["integrations"]["apt_packages"] is False,
+                "openSUSE fixture must not activate the APT package backend")
+        require(payload["integrations"]["dnf_packages"] is False,
+                "openSUSE fixture must not activate the DNF package backend")
+        require(payload["integrations"]["xbps_packages"] is False,
+                "openSUSE fixture must not activate the XBPS package backend")
+
+        search = run(binary, "--json", "duplicate files", env=env)
+        require(search.returncode == SUCCESS, "openSUSE package discovery query must succeed")
+        search_json = json.loads(search.stdout)
+        require(search_json["results"] and search_json["results"][0]["command"] == "fdupes",
+                "Zypper backend should discover an uninstalled repository tool")
+        require("zypper" in search_json["results"][0]["source"].split("+"),
+                "Zypper discovery must retain package provenance")
+        require(not marker.exists(),
+                "openSUSE backend must remain no-refresh, plugin-disabled, and query-only")
+
+
+
+def test_void_backend_autoselection(binary: Path) -> None:
+    with tempfile.TemporaryDirectory(prefix="acclorite-cli-xbps-backend-") as tmp:
+        root = Path(tmp)
+        fixture_bin = root / "bin"
+        fixture_bin.mkdir(parents=True)
+        marker = root / "forbidden-xbps-call"
+
+        xbps_query = fixture_bin / "xbps-query"
+        xbps_query.write_text(
+            "#!/bin/sh\n"
+            "fail() { printf x > '" + str(marker) + "'; exit 99; }\n"
+            "for arg in \"$@\"; do\n"
+            "  case \"$arg\" in -M|--memory-sync|--repository|--repository=*) fail ;; esac\n"
+            "done\n"
+            "if [ \"$1\" = '-L' ]; then printf '%s\\n' '123 https://repo-default.voidlinux.org/current'; exit 0; fi\n"
+            "if [ \"$1\" = '-l' ]; then printf '%s\\n' '[*] xbps-0.60.7_1'; exit 0; fi\n"
+            "has_regex=0; has_search=0\n"
+            "for arg in \"$@\"; do\n"
+            "  [ \"$arg\" = '--regex' ] && has_regex=1\n"
+            "  [ \"$arg\" = '-Rs' ] && has_search=1\n"
+            "done\n"
+            "[ \"$has_regex\" = 1 ] && [ \"$has_search\" = 1 ] || fail\n"
+            "printf '%s\\n' '[-] fdupes-2.3.0_1 identify duplicate files in directories'\n"
+            "exit 0\n",
+            encoding="utf-8",
+        )
+        xbps_query.chmod(xbps_query.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+        helper = fixture_bin / "xbps-uhelper"
+        helper.write_text(
+            "#!/bin/sh\n"
+            "case \"$1\" in\n"
+            "  getpkgname) printf '%s\\n' 'fdupes' ;;\n"
+            "  getpkgversion) printf '%s\\n' '2.3.0_1' ;;\n"
+            "  *) exit 99 ;;\n"
+            "esac\n",
+            encoding="utf-8",
+        )
+        helper.chmod(helper.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+        xbps_install = fixture_bin / "xbps-install"
+        xbps_install.write_text(
+            "#!/bin/sh\nprintf x > '" + str(marker) + "'\nexit 99\n",
+            encoding="utf-8",
+        )
+        xbps_install.chmod(xbps_install.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+        os_release = root / "os-release"
+        os_release.write_text("ID=void\n", encoding="utf-8")
+        env = isolated_env(root, fixture_bin)
+        env["ACCLORITE_OS_RELEASE"] = str(os_release)
+
+        capabilities = run(binary, "--capabilities", env=env)
+        require(capabilities.returncode == SUCCESS, "Void capability probe must exit 0")
+        payload = json.loads(capabilities.stdout)
+        require(payload["integrations"]["xbps_packages"] is True,
+                "Void fixture must activate the XBPS package backend")
+        require(payload["integrations"]["arch_packages"] is False,
+                "Void fixture must not activate the Arch package backend")
+        require(payload["integrations"]["apt_packages"] is False,
+                "Void fixture must not activate the APT package backend")
+        require(payload["integrations"]["dnf_packages"] is False,
+                "Void fixture must not activate the DNF package backend")
+        require(payload["integrations"]["zypper_packages"] is False,
+                "Void fixture must not activate the Zypper package backend")
+
+        search = run(binary, "--json", "duplicate files", env=env)
+        require(search.returncode == SUCCESS, "Void package discovery query must succeed")
+        search_json = json.loads(search.stdout)
+        require(search_json["results"] and search_json["results"][0]["command"] == "fdupes",
+                "XBPS backend should discover an uninstalled repository tool")
+        require("xbps" in search_json["results"][0]["source"].split("+"),
+                "XBPS discovery must retain package provenance")
+        require(not marker.exists(),
+                "Void backend must never enable memory-sync or invoke xbps-install")
 
 
 def test_usage_errors(binary: Path) -> None:
@@ -135,6 +397,43 @@ def test_search_exit_codes(binary: Path) -> None:
         require(miss_json["results"] == [], "no-result search must have an empty results array")
 
 
+def test_reindex_preserves_live_index_on_failure(binary: Path) -> None:
+    capabilities = json.loads(run(binary, "--capabilities").stdout)
+    if not capabilities["build"]["sqlite_fts"]:
+        return
+
+    with tempfile.TemporaryDirectory(prefix="acclorite-cli-reindex-recovery-") as tmp:
+        root = Path(tmp)
+        fixture_bin = root / "bin"
+        fixture_bin.mkdir(parents=True)
+        fixture = fixture_bin / "m8recoverytool"
+        fixture.write_text("fixture\n", encoding="utf-8")
+        fixture.chmod(fixture.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+        env = isolated_env(root, fixture_bin)
+        rebuilt = run(binary, "--reindex", env=env)
+        require(rebuilt.returncode == SUCCESS, "recovery fixture initial reindex must succeed")
+
+        db = Path(env["ACCLORITE_INDEX_PATH"])
+        require(db.is_file(), "successful reindex must create the live index")
+        before = db.read_bytes()
+        require(before, "recovery fixture live index must not be empty")
+
+        fixture.unlink()
+        failed = run(binary, "--reindex", env=env)
+        require(failed.returncode == OPERATIONAL_ERROR,
+                "empty-catalog reindex must report operational failure")
+        require(db.is_file(), "failed reindex must preserve the previous live index")
+        require(db.read_bytes() == before,
+                "failed reindex must preserve the previous live index byte-for-byte")
+        require(not Path(str(db) + ".rebuild").exists(),
+                "failed reindex must clean the staging database")
+        require(not Path(str(db) + ".rebuild-wal").exists(),
+                "failed reindex must clean the staging WAL")
+        require(not Path(str(db) + ".rebuild-shm").exists(),
+                "failed reindex must clean the staging shared-memory file")
+
+
 def test_doctor_and_operational_exit_codes(binary: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="acclorite-cli-doctor-") as tmp:
         root = Path(tmp)
@@ -160,8 +459,13 @@ def main() -> int:
     binary = args.binary.resolve()
 
     test_capabilities(binary)
+    test_debian_backend_autoselection(binary)
+    test_fedora_backend_autoselection(binary)
+    test_opensuse_backend_autoselection(binary)
+    test_void_backend_autoselection(binary)
     test_usage_errors(binary)
     test_search_exit_codes(binary)
+    test_reindex_preserves_live_index_on_failure(binary)
     test_doctor_and_operational_exit_codes(binary)
     print("Acclorite CLI contract tests passed.")
     return 0
