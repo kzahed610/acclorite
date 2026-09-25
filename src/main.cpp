@@ -14,6 +14,7 @@
 #include "acclorite/guidance/info_provider.hpp"
 #include "acclorite/guidance/man_provider.hpp"
 #include "acclorite/guidance/tldr_provider.hpp"
+#include "acclorite/lore/quote_provider.hpp"
 #include "acclorite/syntax/man_provider.hpp"
 #include "acclorite/syntax/fish_completion_provider.hpp"
 #include "acclorite/output/capabilities_json_renderer.hpp"
@@ -53,6 +54,7 @@ struct CliOptions {
     bool explain_ranking{false};
     bool profile{false};
     bool capabilities{false};
+    bool lore{false};
     std::vector<std::string> query_parts;
 };
 
@@ -74,6 +76,18 @@ void styled(
     } else {
         out << text;
     }
+}
+
+void render_lore_quote(const acclorite::lore::Quote& quote, std::ostream& out, const bool color, const bool leading_gap = true) {
+    if (leading_gap) {
+        out << '\n';
+    }
+    styled(out, color, kAnsiDim, "“");
+    styled(out, color, kAnsiDim, quote.text);
+    styled(out, color, kAnsiDim, "”");
+    out << "\n  ";
+    styled(out, color, kAnsiDim, std::string("— ") + quote.attribution);
+    out << '\n';
 }
 
 void print_usage(std::ostream& out, const bool color = false) {
@@ -184,6 +198,10 @@ int run_cli(const int argc, char** argv) {
             options.capabilities = true;
             continue;
         }
+        if (arg == "--lore") {
+            options.lore = true;
+            continue;
+        }
         if (!arg.empty() && arg.front() == '-') {
             return usage_error("unknown option: " + std::string(arg));
         }
@@ -192,7 +210,7 @@ int run_cli(const int argc, char** argv) {
     }
 
     if (options.help) {
-        if (options.version || options.capabilities || options.reindex || options.json ||
+        if (options.version || options.capabilities || options.reindex || options.json || options.lore ||
             options.explain_ranking || options.profile || !options.query_parts.empty()) {
             return usage_error("--help must be used by itself");
         }
@@ -201,7 +219,7 @@ int run_cli(const int argc, char** argv) {
     }
 
     if (options.version) {
-        if (options.capabilities || options.reindex || options.json || options.explain_ranking ||
+        if (options.capabilities || options.reindex || options.json || options.lore || options.explain_ranking ||
             options.profile || !options.query_parts.empty()) {
             return usage_error("--version must be used by itself");
         }
@@ -210,11 +228,25 @@ int run_cli(const int argc, char** argv) {
     }
 
     if (options.capabilities) {
-        if (options.reindex || options.explain_ranking || options.profile || !options.query_parts.empty()) {
-            return usage_error("--capabilities does not accept a query, --reindex, --explain-ranking, or --profile");
+        if (options.reindex || options.explain_ranking || options.profile || options.lore || !options.query_parts.empty()) {
+            return usage_error("--capabilities does not accept a query, --reindex, --explain-ranking, --profile, or --lore");
         }
         const auto report = acclorite::detect_capabilities();
         acclorite::CapabilitiesJsonRenderer{}.render(report, kVersion, std::cout);
+        return exit_code(ExitCode::Success);
+    }
+
+    if (options.lore) {
+        if (options.json || options.reindex || options.explain_ranking || options.profile ||
+            !options.query_parts.empty()) {
+            return usage_error("--lore must be used by itself");
+        }
+        const acclorite::lore::QuoteProvider lore;
+        const auto quote = lore.quote_for(acclorite::lore::QuoteProvider::runtime_entropy());
+        if (!quote) {
+            return exit_code(ExitCode::NoResult);
+        }
+        render_lore_quote(*quote, std::cout, acclorite::system::stdout_supports_color(), false);
         return exit_code(ExitCode::Success);
     }
 
@@ -357,7 +389,17 @@ int run_cli(const int argc, char** argv) {
     if (options.json) {
         acclorite::JsonRenderer{}.render(result, std::cout);
     } else {
-        acclorite::TerminalRenderer{acclorite::system::stdout_supports_color()}.render(result, std::cout);
+        const bool color = acclorite::system::stdout_supports_color();
+        acclorite::TerminalRenderer{color}.render(result, std::cout);
+        if (!options.explain_ranking && !options.profile && acclorite::system::stdout_is_terminal()) {
+            const auto entropy = acclorite::lore::QuoteProvider::runtime_entropy();
+            if (acclorite::lore::QuoteProvider::should_surface(entropy)) {
+                const acclorite::lore::QuoteProvider lore;
+                if (const auto quote = lore.quote_for(entropy)) {
+                    render_lore_quote(*quote, std::cout, color);
+                }
+            }
+        }
     }
 
     return (result.candidates.empty() && result.locations.empty())

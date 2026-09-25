@@ -25,6 +25,8 @@ set(ACCLORITE_CURATED_GUIDANCE_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/data/curated-
 set(ACCLORITE_CURATED_GUIDANCE_BUILD "${CMAKE_CURRENT_BINARY_DIR}/share/acclorite/curated-guidance.tsv")
 set(ACCLORITE_ZYPPER_CONFIG_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/data/zypper-readonly.conf")
 set(ACCLORITE_ZYPPER_CONFIG_BUILD "${CMAKE_CURRENT_BINARY_DIR}/share/acclorite/zypper-readonly.conf")
+set(ACCLORITE_QUOTES_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/data/quotes.tsv")
+set(ACCLORITE_QUOTES_BUILD "${CMAKE_CURRENT_BINARY_DIR}/share/acclorite/quotes.tsv")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/share/acclorite")
 configure_file(
     "${ACCLORITE_CURATED_GUIDANCE_SOURCE}"
@@ -34,6 +36,11 @@ configure_file(
 configure_file(
     "${ACCLORITE_ZYPPER_CONFIG_SOURCE}"
     "${ACCLORITE_ZYPPER_CONFIG_BUILD}"
+    COPYONLY
+)
+configure_file(
+    "${ACCLORITE_QUOTES_SOURCE}"
+    "${ACCLORITE_QUOTES_BUILD}"
     COPYONLY
 )
 
@@ -60,6 +67,7 @@ add_library(acclorite_core STATIC
     src/guidance/info_provider.cpp
     src/guidance/tldr_provider.cpp
     src/guidance/curated_provider.cpp
+    src/lore/quote_provider.cpp
     src/syntax/man_provider.cpp
     src/syntax/fish_completion_provider.cpp
     src/syntax/grammar_merge.cpp
@@ -89,6 +97,8 @@ target_compile_definitions(acclorite_core PRIVATE
     ACCLORITE_CURATED_GUIDANCE_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/acclorite/curated-guidance.tsv"
     ACCLORITE_ZYPPER_CONFIG_BUILD_FILE="${ACCLORITE_ZYPPER_CONFIG_BUILD}"
     ACCLORITE_ZYPPER_CONFIG_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/acclorite/zypper-readonly.conf"
+    ACCLORITE_QUOTES_BUILD_FILE="${ACCLORITE_QUOTES_BUILD}"
+    ACCLORITE_QUOTES_INSTALL_FILE="${CMAKE_INSTALL_FULL_DATADIR}/acclorite/quotes.tsv"
 )
 
 if(SQLite3_FOUND)
@@ -132,6 +142,7 @@ install(TARGETS acclorite RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES
     "${ACCLORITE_CURATED_GUIDANCE_SOURCE}"
     "${ACCLORITE_ZYPPER_CONFIG_SOURCE}"
+    "${ACCLORITE_QUOTES_SOURCE}"
     DESTINATION ${CMAKE_INSTALL_DATADIR}/acclorite
 )
 install(FILES

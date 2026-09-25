@@ -2154,7 +2154,7 @@ acclorite/
 ├── data/
 │   ├── vocabulary.json
 │   ├── phrases.json
-│   └── quotes.json
+│   └── quotes.tsv
 │
 ├── tests/
 │   ├── unit/
@@ -2171,6 +2171,12 @@ acclorite/
 ```
 
 Do not create every directory before it is needed merely to satisfy the diagram.
+
+### 23.1 Hidden lore/quote system status
+
+The specification's hidden lore feature is implemented as a presentation-only side channel. A bundled local quote corpus is installed with Acclorite; ordinary interactive human terminal queries have a sparse random chance of receiving one quote after the normal answer, while the undocumented standalone `--lore` command selects one on demand. Machine JSON, capability output, Doctor, maintenance commands, ranking, and exit semantics are unaffected. The feature performs no network access and does not explain its thematic origin.
+
+The shipped corpus is derived from the maintainer's larger Volume 1-10 master dataset rather than vendoring that master file. `tools/build_lore_corpus.py` validates the master, preserves quote text and attribution exactly, selects entries independently present in both source datasets with balanced volume/type coverage, retains the cross-confirmed Regis set, and appends explicitly declared manual project overrides without pretending they came from the master dataset. The generated runtime TSV is therefore small, auditable, and reproducible while the full research/collection dataset stays outside the release payload.
 
 ---
 

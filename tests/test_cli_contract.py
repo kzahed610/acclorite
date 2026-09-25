@@ -370,6 +370,19 @@ def test_usage_errors(binary: Path) -> None:
     require(mixed_reindex.returncode == USAGE_ERROR, "--reindex must be standalone")
 
 
+def test_hidden_lore_command(binary: Path) -> None:
+    lore = run(binary, "--lore")
+    require(lore.returncode == SUCCESS, "hidden --lore command must succeed when bundled quote data exists")
+    require("\n  — " in lore.stdout and lore.stdout.startswith("“") and "”" in lore.stdout,
+            "hidden --lore command must emit compact quote + attribution flavor text")
+
+    help_text = run(binary, "--help")
+    require("--lore" not in help_text.stdout, "lore command must remain absent from normal help")
+
+    conflict = run(binary, "--lore", "rg")
+    require(conflict.returncode == USAGE_ERROR, "--lore must remain a standalone hidden command")
+
+
 def test_search_exit_codes(binary: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="acclorite-cli-contract-") as tmp:
         root = Path(tmp)
@@ -452,6 +465,29 @@ def test_doctor_and_operational_exit_codes(binary: Path) -> None:
             "reindex failure must use the operational-error exit code 3")
 
 
+
+def test_bundled_lore_corpus() -> None:
+    corpus = Path(__file__).resolve().parents[1] / "data" / "quotes.tsv"
+    require(corpus.is_file(), "bundled lore corpus must exist in the source tree")
+
+    entries: list[tuple[str, str]] = []
+    for raw in corpus.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        require(len(parts) == 2, "every shipped lore row must remain speaker<TAB>quote")
+        speaker, quote = parts
+        require(bool(speaker) and bool(quote), "shipped lore fields must be non-empty")
+        entries.append((speaker, quote))
+
+    require(len(entries) >= 90, "lore corpus must remain extensive rather than collapsing to a tiny sampler")
+    require(len({quote for _, quote in entries}) == len(entries), "shipped lore quote texts must remain unique")
+    require(sum(speaker == "Regis" for speaker, _ in entries) >= 15,
+            "lore corpus must retain the intentional Regis skew")
+    require(("Regis", "Begone, thot.") in entries,
+            "required manual Regis override must remain in the shipped lore corpus")
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", required=True, type=Path)
@@ -464,6 +500,8 @@ def main() -> int:
     test_opensuse_backend_autoselection(binary)
     test_void_backend_autoselection(binary)
     test_usage_errors(binary)
+    test_hidden_lore_command(binary)
+    test_bundled_lore_corpus()
     test_search_exit_codes(binary)
     test_reindex_preserves_live_index_on_failure(binary)
     test_doctor_and_operational_exit_codes(binary)

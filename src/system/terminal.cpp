@@ -20,6 +20,10 @@ bool stream_supports_color(const int fd) noexcept {
 
 } // namespace
 
+bool stdout_is_terminal() noexcept {
+    return ::isatty(STDOUT_FILENO) == 1;
+}
+
 bool stdout_supports_color() noexcept {
     return stream_supports_color(STDOUT_FILENO);
 }

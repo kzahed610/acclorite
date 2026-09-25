@@ -45,6 +45,7 @@ def main() -> int:
             binary,
             root / "share" / "acclorite" / "curated-guidance.tsv",
             root / "share" / "acclorite" / "zypper-readonly.conf",
+            root / "share" / "acclorite" / "quotes.tsv",
             root / "share" / "man" / "man1" / "acclorite.1",
             root / "share" / "doc" / "acclorite" / "LICENSE",
             root / "share" / "doc" / "acclorite" / "README.md",
@@ -65,16 +66,22 @@ def main() -> int:
         # success therefore proves the installed binary found its staged read-only config.
         build_guidance = build_dir / "share" / "acclorite" / "curated-guidance.tsv"
         build_zypper_config = build_dir / "share" / "acclorite" / "zypper-readonly.conf"
+        build_quotes = build_dir / "share" / "acclorite" / "quotes.tsv"
         hidden_guidance = build_guidance.with_suffix(".tsv.install-test-hidden")
         hidden_zypper = build_zypper_config.with_suffix(".conf.install-test-hidden")
+        hidden_quotes = build_quotes.with_suffix(".tsv.install-test-hidden")
         moved_guidance = False
         moved_zypper = False
+        moved_quotes = False
         if build_guidance.exists():
             build_guidance.rename(hidden_guidance)
             moved_guidance = True
         if build_zypper_config.exists():
             build_zypper_config.rename(hidden_zypper)
             moved_zypper = True
+        if build_quotes.exists():
+            build_quotes.rename(hidden_quotes)
+            moved_quotes = True
 
         fixture_bin = Path(tmp) / "fixture-bin"
         fixture_bin.mkdir()
@@ -85,6 +92,17 @@ def main() -> int:
         os_release.write_text('ID=opensuse-tumbleweed\nID_LIKE="suse opensuse"\n', encoding="utf-8")
 
         try:
+            lore = subprocess.run(
+                [str(binary), "--lore"],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env={**os.environ, "ACCLORITE_QUOTES": ""},
+            )
+            require("— " in lore.stdout,
+                    "staged binary must discover bundled lore quotes relative to itself")
+
             result = subprocess.run(
                 [str(binary), "--capabilities"],
                 check=True,
@@ -99,6 +117,8 @@ def main() -> int:
                 },
             )
         finally:
+            if moved_quotes:
+                hidden_quotes.rename(build_quotes)
             if moved_zypper:
                 hidden_zypper.rename(build_zypper_config)
             if moved_guidance:

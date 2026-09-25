@@ -46,6 +46,7 @@
 #include "acclorite/guidance/tldr_provider.hpp"
 #include "acclorite/guidance/curated_provider.hpp"
 #include "acclorite/guidance/provider.hpp"
+#include "acclorite/lore/quote_provider.hpp"
 #include "acclorite/syntax/man_provider.hpp"
 #include "acclorite/syntax/fish_completion_provider.hpp"
 #include "acclorite/syntax/grammar_merge.hpp"
@@ -7013,6 +7014,37 @@ void test_ranked_candidate_hint_adds_only_bounded_relevance_support() {
     }), "hint relevance above the bounded ceiling is rejected rather than creating exact authority");
 }
 
+void test_lore_quote_provider_is_local_bounded_and_deterministic() {
+    const auto temp = std::filesystem::temp_directory_path() / "acclorite-lore-test.tsv";
+    {
+        std::ofstream out(temp);
+        out << "# speaker\tquote\n";
+        out << "Regis\tHey, I'm nothing if not inconsistent.\n";
+        out << "Kordri\tSmall steps, Arthur.\n";
+        out << "broken row without tab\n";
+        out << "too\tmany\tfields\n";
+    }
+
+    const acclorite::lore::QuoteProvider provider(temp);
+    expect(provider.available(), "lore provider loads valid bundled-style local quote data");
+    const auto first = provider.quote_for(42);
+    const auto repeat = provider.quote_for(42);
+    expect(first.has_value() && repeat.has_value() && first->text == repeat->text &&
+               first->attribution == repeat->attribution,
+           "lore selection is deterministic for injected entropy");
+
+    std::size_t surfaced = 0;
+    for (std::uint64_t entropy = 0; entropy < 1200; ++entropy) {
+        if (acclorite::lore::QuoteProvider::should_surface(entropy)) {
+            ++surfaced;
+        }
+    }
+    expect(surfaced > 50 && surfaced < 150,
+           "lore appearance remains sparse rather than surfacing on every command");
+
+    std::filesystem::remove(temp);
+}
+
 void test_json_renderer_escapes() {
     acclorite::SearchResult result;
     result.raw_query = "find \"thing\"";
@@ -7197,6 +7229,7 @@ int main() {
     test_doctor_distinguishes_pkgfile_binary_from_metadata_readiness();
     test_doctor_json_is_machine_readable_and_declares_no_mutation();
     test_terminal_ux_is_hierarchical_and_color_is_opt_in();
+    test_lore_quote_provider_is_local_bounded_and_deterministic();
     test_json_renderer_escapes();
 
     if (failures != 0) {
