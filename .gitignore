@@ -10,3 +10,11 @@ compile_commands.json
 /cmake-build-*/
 __pycache__/
 *.pyc
+
+# Generated benchmark output
+/benchmark-report.json
+/benchmark-report.md
+/benchmark-*-report.json
+/benchmark-*-report.md
+/benchmark-m11-*-baseline.md
+/benchmarks/results/

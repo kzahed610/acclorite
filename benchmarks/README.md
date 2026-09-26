@@ -13,11 +13,14 @@ python3 benchmarks/run.py --binary ./build/acclorite
 Write reproducible artifacts:
 
 ```bash
+mkdir -p benchmarks/results
 python3 benchmarks/run.py \
   --binary ./build/acclorite \
-  --json-out benchmark-report.json \
-  --markdown-out benchmark-report.md
+  --json-out benchmarks/results/benchmark-report.json \
+  --markdown-out benchmarks/results/benchmark-report.md
 ```
+
+Generated benchmark reports belong under `benchmarks/results/`, which is intentionally ignored by Git. The versioned corpora, harness, tests, and research tooling remain tracked; machine-specific result dumps do not.
 
 Use `--strict` when a benchmark failure should produce a non-zero exit status.
 The default mode always prints failures but exits successfully unless the

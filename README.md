@@ -10,24 +10,36 @@
 Acclorite is a local-first Linux CLI for the moment when you know **what you want to do**, but not which command or application you should be looking for.
 
 ```text
-$ acclorite "search text inside files"
-
-Best match
+$ acclorite "How to use grep"
+Explain · grep
 ────────────────────────────────────────
-rg  —  recursively search the current directory for lines matching a pattern
+grep  —  print lines that match patterns
+  ✓ installed · /usr/bin/grep · CLI
 
-  ✓ installed  ·  /usr/bin/rg
-  Interface     CLI
-  Matched       search · text · files
-  Sources       PATH · man
+Usage
+  grep [OPTION]... PATTERNS [FILE]...
 
-Template
-  rg {{pattern}}
+Example
+  grep -n -- 'f.*\.c$' *g*.h /dev/null · man
+  -n, --line-number  —  Prefix each line of output with its 1-based line number.
 
-Confidence  medium · broad match
+Learn     man grep · info grep · tldr grep
 ```
 
 No shell agent. No automatic execution. No network fetch during normal search.
+
+## Showcase
+
+<p align="center">
+  <img src="assets/showcase-01.png" width="32%" alt="Acclorite showcase 1">
+  <img src="assets/showcase-02.png" width="32%" alt="Acclorite showcase 2">
+  <img src="assets/showcase-03.png" width="32%" alt="Acclorite showcase 3">
+</p>
+<p align="center">
+  <img src="assets/showcase-04.png" width="32%" alt="Acclorite showcase 4">
+  <img src="assets/showcase-05.png" width="32%" alt="Acclorite showcase 5">
+  <img src="assets/showcase-06.png" width="32%" alt="Acclorite showcase 6">
+</p>
 
 ## What it does
 
@@ -50,46 +62,45 @@ Acclorite searches local executables, manuals, desktop metadata, supported packa
 
 ## Install
 
-### Arch Linux / CachyOS
+### Easy source install
 
-Install the build dependencies:
-
-```bash
-sudo pacman -S --needed base-devel cmake sqlite
-```
-
-Then build and test:
+Clone the repository and run the installer:
 
 ```bash
 git clone https://github.com/kzahed610/Acclorite.git
 cd Acclorite
-
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j"$(nproc)"
-ctest --test-dir build --output-on-failure
+./install.sh
 ```
 
-Try it directly:
+The installer performs a Release build, runs the normal test suite, and installs under `/usr/local`. It never installs distro packages or refreshes package metadata for you.
+
+For an unprivileged install:
 
 ```bash
-./build/acclorite "search text inside files"
+./install.sh --user
 ```
 
-Or install it system-wide:
+Useful installer options:
+
+```text
+--user                 install under ~/.local
+--prefix PATH          choose another install prefix
+--build-dir PATH       choose the build directory
+--jobs N               choose the build parallelism
+--no-test              skip CTest
+```
+
+On Arch Linux / CachyOS, the normal build dependencies are:
 
 ```bash
-sudo cmake --install build
+sudo pacman -S --needed base-devel cmake sqlite python
 ```
 
-Optional Arch integrations:
+Optional Arch integrations are `man-db`, `expac`, `pkgfile`, and `tealdeer`.
 
-```bash
-sudo pacman -S --needed man-db expac pkgfile tealdeer
-```
+The repository also contains the stable AUR packaging source under [`packaging/aur/`](packaging/aur/). Until the package is published to the AUR, `./install.sh` is the simplest supported install path.
 
-The repository also contains the stable AUR packaging source under [`packaging/aur/`](packaging/aur/). The AUR package is published only after its matching upstream release tag exists.
-
-For per-user installs, other supported distro families, updating, and uninstalling, see **[`docs/install.md`](docs/install.md)**.
+For distro-specific dependency names, manual CMake builds, updating, and uninstalling, see **[`docs/install.md`](docs/install.md)**.
 
 ## Use it
 

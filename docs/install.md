@@ -2,6 +2,45 @@
 
 Acclorite is local-first and offline at runtime. Installing the program naturally requires obtaining source/package data, but ordinary search, Doctor, indexing, guidance, and capability discovery do not fetch from the network.
 
+## Quick source installer
+
+For a normal source install, clone the repository and run:
+
+```bash
+git clone https://github.com/kzahed610/Acclorite.git
+cd Acclorite
+./install.sh
+```
+
+The installer:
+
+- verifies that the required build tools are present;
+- configures a Release build;
+- builds Acclorite;
+- runs CTest by default;
+- installs under `/usr/local` by default;
+- never invokes a distro package manager or refreshes package metadata.
+
+For a per-user install:
+
+```bash
+./install.sh --user
+```
+
+This installs under `~/.local`. Make sure `~/.local/bin` is on `PATH`.
+
+Other useful forms:
+
+```bash
+./install.sh --prefix /opt/acclorite
+./install.sh --build-dir build-release
+./install.sh --jobs 4
+./install.sh --no-test
+./install.sh --help
+```
+
+The manual CMake instructions below remain useful for packaging, development, CI, or custom builds.
+
 ## Arch Linux / CachyOS — source build
 
 Required build/runtime packages for the indexed build:

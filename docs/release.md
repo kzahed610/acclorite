@@ -15,14 +15,15 @@ This checklist covers stable Acclorite releases. Arch/CachyOS remains the refere
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j"$(nproc)"
 ctest --test-dir build --output-on-failure
+mkdir -p benchmarks/results
 python3 benchmarks/run.py \
   --binary ./build/acclorite \
-  --json-out benchmark-report.json \
-  --markdown-out benchmark-report.md \
+  --json-out benchmarks/results/benchmark-report.json \
+  --markdown-out benchmarks/results/benchmark-report.md \
   --strict
 ```
 
-The Arch/CachyOS release authority is the frozen benchmark corpus on a representative real machine, not absolute timing from CI/container environments. Cross-distro backend work must preserve that corpus unchanged.
+The Arch/CachyOS release authority is the frozen benchmark corpus on a representative real machine, not absolute timing from CI/container environments. Cross-distro backend work must preserve that corpus unchanged. Generated reports stay local under ignored `benchmarks/results/`; the versioned corpora and harness are the tracked regression contract.
 
 For `v0.3.0+`, also run a Debian/Ubuntu smoke test (a real system or isolated image with local package metadata):
 
