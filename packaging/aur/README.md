@@ -2,7 +2,7 @@
 
 This directory is the source for the stable `acclorite` AUR package.
 
-The package deliberately follows a fixed upstream release tag rather than the development branch. For `0.3.3`, the source is `v0.3.3`. Network access is therefore a build/install concern only; the installed Acclorite runtime remains offline.
+The package deliberately follows a fixed upstream release tag rather than the development branch. For `0.3.5`, the source is `v0.3.5`. Network access is therefore a build/install concern only; the installed Acclorite runtime remains offline.
 
 Before publishing a release to AUR:
 

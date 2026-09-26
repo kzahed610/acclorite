@@ -22,6 +22,9 @@ struct SearchResult {
     std::vector<LocationHit> locations;
     std::vector<Candidate> candidates;
     std::optional<ActionableAnswer> actionable_answer;
+    // Human-facing verified command overview for named Explain queries. This is
+    // intentionally not part of the frozen machine JSON contract.
+    std::optional<CommandGrammar> command_help;
     Confidence confidence;
     std::vector<ClarificationOption> clarifications;
     SearchTiming timing;

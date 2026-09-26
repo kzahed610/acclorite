@@ -1,6 +1,6 @@
 # Maintainer: Acclorite project
 pkgname=acclorite
-pkgver=0.3.3
+pkgver=0.3.5
 pkgrel=1
 pkgdesc='Local-first deterministic Linux tool-discovery assistant'
 arch=('x86_64')

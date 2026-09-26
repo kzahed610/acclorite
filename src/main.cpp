@@ -37,7 +37,7 @@
 #include "acclorite/system/terminal.hpp"
 
 #ifndef ACCLORITE_VERSION
-#define ACCLORITE_VERSION "0.3.3"
+#define ACCLORITE_VERSION "0.3.5"
 #endif
 
 namespace {

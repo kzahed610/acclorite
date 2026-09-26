@@ -125,7 +125,7 @@ def main() -> int:
                 hidden_guidance.rename(build_guidance)
 
         payload = json.loads(result.stdout)
-        require(payload["acclorite_version"] == "0.3.3", "installed binary version mismatch")
+        require(payload["acclorite_version"] == "0.3.5", "installed binary version mismatch")
         require(payload["integrations"]["curated_guidance"] is True,
                 "staged binary must discover bundled curated guidance relative to itself")
         require(payload["integrations"]["zypper_packages"] is True,

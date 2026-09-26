@@ -59,7 +59,7 @@ def test_capabilities(binary: Path) -> None:
     payload = json.loads(proc.stdout)
 
     require(payload["capabilities_schema_version"] == 1, "capabilities schema must start at 1")
-    require(payload["acclorite_version"] == "0.3.3", "capabilities must expose the binary version")
+    require(payload["acclorite_version"] == "0.3.5", "capabilities must expose the binary version")
     require(payload["search_schema_version"] == 15, "capabilities must expose search schema 15")
     require(payload["doctor_schema_version"] == 1, "capabilities must expose doctor schema 1")
     require(payload["offline_runtime"] is True, "normal runtime must declare offline operation")

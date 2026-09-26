@@ -160,10 +160,12 @@ void render_actionable_answer(const SearchResult& result, std::ostream& out, con
         out << '\n';
     }
 
-    out << "  ";
-    styled(out, color, kDim, "Safety  ");
-    styled(out, color, kDim, action_safety_name(answer.safety));
-    out << '\n';
+    if (answer.safety != ActionSafety::Unknown) {
+        out << "  ";
+        styled(out, color, kDim, "Safety  ");
+        styled(out, color, kDim, action_safety_name(answer.safety));
+        out << '\n';
+    }
 }
 
 bool guidance_looks_like_template(const UsageExample& example) {
@@ -174,8 +176,23 @@ bool guidance_looks_like_template(const UsageExample& example) {
 }
 
 std::string compact_summary(std::string_view summary, const std::size_t max_chars = 76) {
-    std::string out(summary);
-    std::replace(out.begin(), out.end(), '\n', ' ');
+    std::string out;
+    out.reserve(summary.size());
+    bool previous_space = true;
+    for (const unsigned char ch : summary) {
+        if (std::isspace(ch)) {
+            if (!previous_space) {
+                out.push_back(' ');
+            }
+            previous_space = true;
+        } else {
+            out.push_back(static_cast<char>(ch));
+            previous_space = false;
+        }
+    }
+    if (!out.empty() && out.back() == ' ') {
+        out.pop_back();
+    }
     if (out.size() <= max_chars) {
         return out;
     }
@@ -190,6 +207,287 @@ std::string compact_summary(std::string_view summary, const std::size_t max_char
     return out;
 }
 
+std::string option_names_display(const CommandOption& option) {
+    std::string label;
+    for (const auto& name : option.names) {
+        if (name.empty()) {
+            continue;
+        }
+        if (!label.empty()) {
+            label += ", ";
+        }
+        label += name;
+    }
+    if (const std::string value = option_value_display(option); !value.empty()) {
+        if (!label.empty()) {
+            label.push_back(' ');
+        }
+        label += value;
+    }
+    return label;
+}
+
+bool meta_option(const CommandOption& option) {
+    return std::ranges::any_of(option.names, [](const std::string& name) {
+        return name == "-h" || name == "--help" || name == "-V" ||
+               name == "--version" || name == "--usage";
+    });
+}
+
+bool example_mentions_option(const std::string_view example, const CommandOption& option) {
+    for (const auto& name : option.names) {
+        if (name.empty()) {
+            continue;
+        }
+        std::size_t position = example.find(name);
+        while (position != std::string_view::npos) {
+            const bool left_ok = position == 0 ||
+                std::isspace(static_cast<unsigned char>(example[position - 1]));
+            const std::size_t end = position + name.size();
+            const bool right_ok = end == example.size() ||
+                std::isspace(static_cast<unsigned char>(example[end])) ||
+                example[end] == '=';
+            if (left_ok && right_ok) {
+                return true;
+            }
+            position = example.find(name, position + 1);
+        }
+    }
+    return false;
+}
+
+std::string lower_ascii(std::string_view text) {
+    std::string out(text);
+    std::ranges::transform(out, out.begin(), [](const unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return out;
+}
+
+bool obviously_risky_help_example(std::string_view example) {
+    const std::string lower = lower_ascii(example);
+    constexpr std::string_view risky_fragments[] = {
+        " /bin/rm", " rm -", "| rm ", "| xargs rm", "| xargs /bin/rm",
+        " -delete", " --delete", " unlink ", " shred ", " wipefs ",
+        " mkfs", " truncate ", " dd if=", " sudo rm", " sudo dd"
+    };
+    return std::ranges::any_of(risky_fragments, [&](const std::string_view fragment) {
+        return lower.find(fragment) != std::string::npos;
+    });
+}
+
+std::size_t help_example_complexity(std::string_view example) {
+    std::size_t score = example.size();
+    if (example.find('|') != std::string_view::npos) {
+        score += 500;
+    }
+    if (example.find("&&") != std::string_view::npos ||
+        example.find(';') != std::string_view::npos) {
+        score += 500;
+    }
+    if (example.find('>') != std::string_view::npos) {
+        score += 250;
+    }
+    return score;
+}
+
+const UsageExample* preferred_help_example(const Candidate& candidate) {
+    const UsageExample* best = nullptr;
+    std::size_t best_score = 0;
+    for (const auto& example : candidate.examples) {
+        if (!example.verified || example.text.empty() || obviously_risky_help_example(example.text)) {
+            continue;
+        }
+        const std::size_t score = help_example_complexity(example.text);
+        if (!best || score < best_score) {
+            best = &example;
+            best_score = score;
+        }
+    }
+    return best;
+}
+
+bool expression_like_option(const CommandOption& option) {
+    return option.provenance.section == "TESTS" ||
+           option.provenance.section == "ACTIONS" ||
+           option.provenance.section == "OPERATORS" ||
+           option.provenance.section == "EXPRESSION" ||
+           option.provenance.section == "EXPRESSIONS" ||
+           option.provenance.section == "POSITIONAL OPTIONS" ||
+           option.provenance.section == "GLOBAL OPTIONS";
+}
+
+int help_option_priority(const CommandOption& option, std::string_view command) {
+    // `find` has a tiny set of real pre-path switches and a very large
+    // expression language. For teaching output, surface the predicates/actions
+    // users actually compose rather than letting -H/-L/-P consume the compact
+    // six-item budget. Meanings still come exclusively from verified docs.
+    if (command == "find") {
+        constexpr std::string_view common_find_items[] = {
+            "-name", "-type", "-path", "-size", "-empty", "-print", "-maxdepth", "-mtime"
+        };
+        for (std::size_t i = 0; i < std::size(common_find_items); ++i) {
+            if (std::ranges::find(option.names, common_find_items[i]) != option.names.end()) {
+                return static_cast<int>(i);
+            }
+        }
+    }
+
+    if (option.provenance.section == "TESTS") return 20;
+    if (option.provenance.section == "ACTIONS") return 21;
+    if (option.provenance.section == "OPERATORS") return 22;
+    if (expression_like_option(option)) return 23;
+    return 30;
+}
+
+std::string synopsis_display(std::string_view text, std::string_view command) {
+    std::string normalized = compact_summary(text, 4096);
+    constexpr std::size_t kSynopsisLimit = 180;
+    if (normalized.size() <= kSynopsisLimit) {
+        return normalized;
+    }
+
+    // Keep the structural payload of very long dispatcher synopses visible.
+    // `[…]` is deliberately an editorial abbreviation, not invented syntax.
+    const auto command_slot = normalized.find("<command>");
+    if (command_slot != std::string::npos) {
+        const std::string tail = normalized.substr(command_slot);
+        if (tail.size() + command.size() + 6 <= kSynopsisLimit) {
+            return std::string(command) + " […] " + tail;
+        }
+    }
+    return compact_summary(normalized, kSynopsisLimit);
+}
+
+void render_command_help(const SearchResult& result, std::ostream& out, const bool color) {
+    if (!result.command_help || result.candidates.empty()) {
+        return;
+    }
+
+    const auto& grammar = *result.command_help;
+    const auto& candidate = result.candidates.front();
+    const UsageExample* example = preferred_help_example(candidate);
+
+    if (!grammar.synopsis.empty()) {
+        out << '\n';
+        styled(out, color, kBold, "Usage");
+        out << '\n';
+        const std::size_t limit = std::min<std::size_t>(2, grammar.synopsis.size());
+        for (std::size_t i = 0; i < limit; ++i) {
+            out << "  ";
+            styled(out, color, kCyan, synopsis_display(grammar.synopsis[i].text, grammar.command));
+            out << '\n';
+        }
+        if (grammar.synopsis.size() > limit) {
+            out << "  … " << (grammar.synopsis.size() - limit) << " more documented form";
+            if (grammar.synopsis.size() - limit != 1) {
+                out << 's';
+            }
+            out << '\n';
+        }
+    }
+
+    std::vector<const CommandOption*> options;
+    options.reserve(grammar.global_options.size());
+    for (const auto& option : grammar.global_options) {
+        if (!option.names.empty() && !meta_option(option)) {
+            options.push_back(&option);
+        }
+    }
+
+    std::vector<const CommandOption*> example_options;
+    if (example) {
+        for (const auto* option : options) {
+            if (example_mentions_option(example->text, *option)) {
+                example_options.push_back(option);
+            }
+        }
+
+        out << '\n';
+        styled(out, color, kBold, "Example");
+        out << '\n';
+        out << "  ";
+        styled(out, color, kCyan, example->text);
+        out << " · ";
+        styled(out, color, kDim, guidance_source_kind_name(example->source_kind));
+        out << '\n';
+
+        if (!example_options.empty()) {
+            for (const auto* option : example_options) {
+                out << "  ";
+                styled(out, color, kCyan, option_names_display(*option));
+                if (!option->description.empty()) {
+                    out << "  —  " << compact_summary(option->description, 104);
+                }
+                out << '\n';
+            }
+        }
+    }
+
+    std::vector<const CommandOption*> remaining_options;
+    remaining_options.reserve(options.size());
+    for (const auto* option : options) {
+        if (std::ranges::find(example_options, option) == example_options.end()) {
+            remaining_options.push_back(option);
+        }
+    }
+
+    if (!remaining_options.empty()) {
+        std::stable_sort(remaining_options.begin(), remaining_options.end(), [&](const CommandOption* lhs, const CommandOption* rhs) {
+            return help_option_priority(*lhs, grammar.command) < help_option_priority(*rhs, grammar.command);
+        });
+
+        out << '\n';
+        const bool has_expressions = std::ranges::any_of(options, [](const CommandOption* option) {
+            return expression_like_option(*option);
+        });
+        styled(out, color, kBold, has_expressions ? "Other options & expressions" : "Other options");
+        out << '\n';
+        constexpr std::size_t kOptionLimit = 6;
+        const std::size_t limit = std::min<std::size_t>(kOptionLimit, remaining_options.size());
+        for (std::size_t i = 0; i < limit; ++i) {
+            const auto& option = *remaining_options[i];
+            out << "  ";
+            styled(out, color, kCyan, option_names_display(option));
+            if (!option.description.empty()) {
+                out << "  —  " << compact_summary(option.description, 104);
+            }
+            out << '\n';
+        }
+        if (remaining_options.size() > limit) {
+            out << "  … " << (remaining_options.size() - limit) << " more documented items\n";
+        }
+    }
+
+    std::vector<const SubcommandSpec*> subcommands;
+    subcommands.reserve(grammar.subcommands.size());
+    for (const auto& subcommand : grammar.subcommands) {
+        // Bare tokens extracted from command-section prose are not useful in a
+        // teaching overview. Prefer entries with actual source-backed meaning.
+        if (!subcommand.name.empty() && !subcommand.description.empty()) {
+            subcommands.push_back(&subcommand);
+        }
+    }
+
+    if (!subcommands.empty()) {
+        out << '\n';
+        styled(out, color, kBold, "Subcommands");
+        out << '\n';
+        constexpr std::size_t kSubcommandLimit = 6;
+        const std::size_t limit = std::min<std::size_t>(kSubcommandLimit, subcommands.size());
+        for (std::size_t i = 0; i < limit; ++i) {
+            const auto& subcommand = *subcommands[i];
+            out << "  ";
+            styled(out, color, kCyan, subcommand.name);
+            out << "  —  " << compact_summary(subcommand.description, 104);
+            out << '\n';
+        }
+        if (subcommands.size() > limit) {
+            out << "  … " << (subcommands.size() - limit) << " more documented subcommands\n";
+        }
+    }
+}
+
 std::string_view human_ambiguity_label(const AmbiguityState state) {
     switch (state) {
         case AmbiguityState::Clear: return "clear match";
@@ -201,8 +499,13 @@ std::string_view human_ambiguity_label(const AmbiguityState state) {
     return "no result";
 }
 
-void render_guidance(const Candidate& candidate, std::ostream& out, const bool color) {
-    if (!candidate.examples.empty()) {
+void render_guidance(
+    const Candidate& candidate,
+    std::ostream& out,
+    const bool color,
+    const bool include_example = true
+) {
+    if (include_example && !candidate.examples.empty()) {
         const auto& example = candidate.examples.front();
         styled(out, color, kDim, guidance_looks_like_template(example) ? "Template  " : "Example   ");
         styled(out, color, kCyan, example.text);
@@ -571,7 +874,8 @@ void TerminalRenderer::render(const SearchResult& result, std::ostream& out) con
             render_section_heading(out, "Related tool", color_);
             render_candidate_details(result.candidates.front(), out, color_);
             render_actionable_answer(result, out, color_);
-            render_guidance(result.candidates.front(), out, color_);
+            render_command_help(result, out, color_);
+            render_guidance(result.candidates.front(), out, color_, !result.command_help.has_value());
             render_confidence_summary(result, out, color_);
         }
         render_ranking_diagnostics(result, out);
@@ -625,7 +929,8 @@ void TerminalRenderer::render(const SearchResult& result, std::ostream& out) con
     }
     render_candidate_details(result.candidates.front(), out, color_);
     render_actionable_answer(result, out, color_);
-    render_guidance(result.candidates.front(), out, color_);
+    render_command_help(result, out, color_);
+    render_guidance(result.candidates.front(), out, color_, !result.command_help.has_value());
     render_confidence_summary(result, out, color_);
 
     // Explanation of an explicitly named entity should not immediately bury the

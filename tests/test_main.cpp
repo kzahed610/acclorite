@@ -4932,7 +4932,8 @@ void test_man_syntax_provider_extracts_verified_grammar_without_executing_target
         "NAME\n"
         "    tool - fixture\n"
         "SYNOPSIS\n"
-        "    tool [OPTIONS] <input>\n"
+        "    tool [KDE Frame‐\n"
+        "        works OPTIONS] <input>\n"
         "OPTIONS\n"
         "    -q, --quiet\n"
         "        Suppress ordinary output.\n"
@@ -4944,6 +4945,15 @@ void test_man_syntax_provider_extracts_verified_grammar_without_executing_target
         "        Follow redi‐\n"
         "        rects to a new location.\n"
         "        --proxy-user may still be mentioned here as prose.\n"
+        "EXPRESSION\n"
+        "       TESTS\n"
+        "           A numeric argument n can be specified to tests (like -mtime,\n"
+        "           -size, -uid and -used) as\n"
+        "           -name PATTERN\n"
+        "                  Match the base of the file name against PATTERN.\n"
+        "       ACTIONS\n"
+        "           -print\n"
+        "                  Print the full file name on standard output.\n"
         "COMMANDS\n"
         "    status [UNIT...|PID...]]\n"
         "        Show status for one or more units.\n"
@@ -4975,10 +4985,11 @@ void test_man_syntax_provider_extracts_verified_grammar_without_executing_target
         expect(grammar.has_value(), "man syntax provider accepts proven local manual syntax");
         if (grammar) {
             expect(grammar->command == "tool", "command grammar preserves exact candidate identity");
-            expect(grammar->synopsis.size() == 1 && grammar->synopsis.front().text == "tool [OPTIONS] <input>",
-                   "man syntax parser preserves conservative SYNOPSIS text");
-            expect(grammar->global_options.size() == 4,
-                   "man syntax parser extracts option declarations without dumping prose");
+            expect(grammar->synopsis.size() == 1 &&
+                       grammar->synopsis.front().text == "tool [KDE Frameworks OPTIONS] <input>",
+                   "man syntax parser preserves conservative SYNOPSIS text while removing groff wrap hyphens");
+            expect(grammar->global_options.size() == 6,
+                   "man syntax parser extracts options plus find-like test/action declarations without dumping prose");
 
             const auto output = std::ranges::find_if(grammar->global_options, [](const acclorite::CommandOption& option) {
                 return std::ranges::find(option.names, "--output") != option.names.end();
@@ -5012,6 +5023,23 @@ void test_man_syntax_provider_extracts_verified_grammar_without_executing_target
             expect(std::ranges::none_of(grammar->global_options, [](const acclorite::CommandOption& option) {
                 return std::ranges::find(option.names, "--proxy-user") != option.names.end();
             }), "wrapped option-looking prose is not promoted into fabricated grammar");
+            const auto name_test = std::ranges::find_if(grammar->global_options, [](const acclorite::CommandOption& option) {
+                return std::ranges::find(option.names, "-name") != option.names.end();
+            });
+            const auto print_action = std::ranges::find_if(grammar->global_options, [](const acclorite::CommandOption& option) {
+                return std::ranges::find(option.names, "-print") != option.names.end();
+            });
+            expect(name_test != grammar->global_options.end() &&
+                       name_test->value_name == "PATTERN" &&
+                       name_test->provenance.section == "TESTS",
+                   "man syntax parser keeps find-like tests as source-backed executable grammar");
+            expect(print_action != grammar->global_options.end() &&
+                       print_action->provenance.section == "ACTIONS",
+                   "man syntax parser keeps find-like actions as source-backed executable grammar");
+            expect(std::ranges::none_of(grammar->global_options, [](const acclorite::CommandOption& option) {
+                return std::ranges::find(option.names, "-size") != option.names.end() ||
+                       std::ranges::find(option.names, "-uid") != option.names.end();
+            }), "wrapped find-style prose listing option names is not fabricated into a declaration");
             expect(grammar->subcommands.size() == 4,
                    "man command sections conservatively produce verified subcommand grammar");
             const auto unicode_signature = std::ranges::find_if(grammar->subcommands, [](const acclorite::SubcommandSpec& subcommand) {
@@ -6245,6 +6273,182 @@ void test_shell_renderer_quotes_structured_invocations() {
            "shell renderer quotes a spaced home-relative path without disabling tilde expansion");
 }
 
+
+class CommandHelpSource final : public acclorite::KnowledgeSource {
+public:
+    [[nodiscard]] bool available() const override { return true; }
+    [[nodiscard]] std::string_view diagnostic_name() const override { return "command-help-source"; }
+    [[nodiscard]] std::vector<acclorite::Candidate> search(const acclorite::Query&) const override {
+        return {acclorite::Candidate{
+            .command = "needlecmd",
+            .path = "/usr/bin/needlecmd",
+            .summary = "fixture command used to demonstrate verified help",
+            .source = "path+man",
+            .installed = true,
+            .cli_capable = true,
+            .semantic_fit = 0.98,
+            .ranking_utility = 0.98,
+            .score = 0.98,
+        }};
+    }
+};
+
+class CommandHelpGuidanceProvider final : public acclorite::GuidanceProvider {
+public:
+    [[nodiscard]] bool available() const override { return true; }
+    [[nodiscard]] std::string_view diagnostic_name() const override { return "command-help-guidance"; }
+    [[nodiscard]] acclorite::GuidanceBundle guide(const acclorite::Candidate&) const override {
+        return acclorite::GuidanceBundle{
+            .examples = {
+                acclorite::UsageExample{
+                    .text = "needlecmd --quiet input.txt | xargs /bin/rm -f",
+                    .source_kind = acclorite::GuidanceSourceKind::Man,
+                    .source_reference = "man:needlecmd",
+                    .verified = true,
+                },
+                acclorite::UsageExample{
+                    .text = "needlecmd --quiet input.txt",
+                    .source_kind = acclorite::GuidanceSourceKind::Man,
+                    .source_reference = "man:needlecmd",
+                    .verified = true,
+                },
+            },
+            .learning_resources = {},
+        };
+    }
+};
+
+class CommandHelpSyntaxProvider final : public acclorite::CommandSyntaxProvider {
+public:
+    [[nodiscard]] bool available() const override { return true; }
+    [[nodiscard]] std::string_view diagnostic_name() const override { return "command-help-syntax"; }
+    [[nodiscard]] std::optional<acclorite::CommandGrammar> grammar(
+        const acclorite::Candidate& candidate
+    ) const override {
+        if (candidate.command != "needlecmd") {
+            return std::nullopt;
+        }
+        const auto provenance = acclorite::SyntaxProvenance{
+            .source_kind = acclorite::SyntaxSourceKind::Man,
+            .source_reference = "man:needlecmd",
+            .section = "OPTIONS",
+        };
+        return acclorite::CommandGrammar{
+            .command = "needlecmd",
+            .global_options = {
+                acclorite::CommandOption{
+                    .names = {"-o", "--output"},
+                    .description = "Write output to a file.",
+                    .value_name = "FILE",
+                    .takes_value = true,
+                    .value_required = true,
+                    .provenance = provenance,
+                },
+                acclorite::CommandOption{
+                    .names = {"-q", "--quiet"},
+                    .description = "Suppress ordinary output.",
+                    .provenance = provenance,
+                },
+                acclorite::CommandOption{
+                    .names = {"--help"},
+                    .description = "Show help.",
+                    .provenance = provenance,
+                },
+                acclorite::CommandOption{
+                    .names = {"--match"},
+                    .description = "Match a documented expression.",
+                    .value_name = "PATTERN",
+                    .takes_value = true,
+                    .value_required = true,
+                    .provenance = acclorite::SyntaxProvenance{
+                        .source_kind = acclorite::SyntaxSourceKind::Man,
+                        .source_reference = "man:needlecmd",
+                        .section = "TESTS",
+                    },
+                },
+            },
+            .subcommands = {
+                acclorite::SubcommandSpec{
+                    .name = "this",
+                    .description = "",
+                    .provenance = acclorite::SyntaxProvenance{
+                        .source_kind = acclorite::SyntaxSourceKind::Man,
+                        .source_reference = "man:needlecmd",
+                        .section = "COMMANDS",
+                    },
+                },
+                acclorite::SubcommandSpec{
+                    .name = "status",
+                    .description = "Show current status.",
+                    .provenance = acclorite::SyntaxProvenance{
+                        .source_kind = acclorite::SyntaxSourceKind::Man,
+                        .source_reference = "man:needlecmd",
+                        .section = "COMMANDS",
+                    },
+                },
+            },
+            .positionals = {},
+            .synopsis = {acclorite::SynopsisAlternative{
+                .text = "needlecmd [OPTIONS] <input>",
+                .provenance = acclorite::SyntaxProvenance{
+                    .source_kind = acclorite::SyntaxSourceKind::Man,
+                    .source_reference = "man:needlecmd",
+                    .section = "SYNOPSIS",
+                },
+            }},
+        };
+    }
+};
+
+void test_named_usage_queries_resolve_exact_command_and_render_verified_help() {
+    auto parsed = acclorite::Query::parse("How to use find");
+    parsed.frame = acclorite::query::recognize_frame(parsed);
+    parsed.targets = acclorite::query::frame_targets(parsed);
+    expect(parsed.frame.frame == acclorite::QueryFrame::Explain,
+           "how-to-use wording is an entity explanation rather than generic discovery");
+    expect(parsed.targets.size() == 1 && parsed.targets.front() == "find",
+           "how-to-use wording preserves the named command as the exact explanation target");
+
+    acclorite::SearchEngine engine;
+    engine.add_source(std::make_unique<CommandHelpSource>());
+    engine.add_guidance_provider(std::make_unique<CommandHelpGuidanceProvider>());
+    engine.add_syntax_provider(std::make_unique<CommandHelpSyntaxProvider>());
+
+    const auto result = engine.search(acclorite::Query::parse("How to use needlecmd"));
+    expect(result.frame.frame == acclorite::QueryFrame::Explain &&
+               result.targets.size() == 1 && result.targets.front() == "needlecmd",
+           "usage query resolves the explicitly named command before generic retrieval noise");
+    expect(result.command_help.has_value(),
+           "general named-command explanation attaches verified root grammar for human help");
+    expect(!result.actionable_answer.has_value(),
+           "general command help does not masquerade as a targeted executable action");
+
+    std::ostringstream rendered;
+    acclorite::TerminalRenderer{}.render(result, rendered);
+    const std::string text = rendered.str();
+    expect(text.find("Usage\n  needlecmd [OPTIONS] <input>") != std::string::npos,
+           "terminal command help renders verified synopsis text");
+    expect(text.find("Example\n  needlecmd --quiet input.txt · man") != std::string::npos &&
+               text.find("-q, --quiet  —  Suppress ordinary output.") != std::string::npos,
+           "terminal command help pairs a safe verified example with explanations for syntax used by that example");
+    expect(text.find("/bin/rm") == std::string::npos,
+           "generic command help skips an obviously destructive verified example when a safer verified example exists");
+    expect(text.find("Other options & expressions\n") != std::string::npos &&
+               text.find("-o, --output <FILE>  —  Write output to a file.") != std::string::npos &&
+               text.find("--match <PATTERN>  —  Match a documented expression.") != std::string::npos,
+           "terminal command help separates other documented options and expression-like syntax from the example breakdown");
+    const auto expression_pos = text.find("--match <PATTERN>");
+    const auto ordinary_option_pos = text.find("-o, --output <FILE>");
+    expect(expression_pos != std::string::npos && ordinary_option_pos != std::string::npos &&
+               expression_pos < ordinary_option_pos,
+           "expression grammar receives teaching priority over low-level root options");
+    expect(text.find("--help") == std::string::npos,
+           "generic help/version switches do not crowd the bounded option overview");
+    expect(text.find("Subcommands\n  status  —  Show current status.") != std::string::npos &&
+               text.find("\n  this\n") == std::string::npos,
+           "terminal command help explains meaningful verified subcommands while hiding bare parser noise");
+}
+
 void test_syntax_provider_is_not_touched_for_ordinary_discovery() {
     int availability_calls = 0;
     int grammar_calls = 0;
@@ -6273,9 +6477,14 @@ void test_man_guidance_extracts_only_source_backed_examples() {
         "NAME\n"
         "    tool - fixture\n"
         "EXAMPLES\n"
+        "    tool / \\\n"
+        "        -name '*.tmp' -print\n"
         "    tool --scan ./src\n"
         "    This prose mentions tool but is not a command line.\n"
         "    $ tool --json ./src\n"
+        "    tool --one ./src\n"
+        "    tool --two ./src\n"
+        "    tool --three ./src\n"
         "OPTIONS\n"
         "    --help\n"
     );
@@ -6295,8 +6504,8 @@ void test_man_guidance_extracts_only_source_backed_examples() {
         const auto bundle = provider.guide(candidate);
         expect(bundle.learning_resources.size() == 1,
                "local man evidence creates one verified learning resource");
-        expect(bundle.examples.size() == 2,
-               "man guidance extracts command-looking lines from explicit examples section");
+        expect(bundle.examples.size() == 5,
+               "man guidance keeps a bounded pool while rejecting incomplete shell-continuation fragments");
         if (bundle.examples.size() >= 2) {
             expect(bundle.examples[0].text == "tool --scan ./src",
                    "man guidance preserves first source-backed command verbatim");
@@ -7137,6 +7346,7 @@ int main() {
     test_safety_classifier_requires_complete_source_backed_alignment();
     test_root_synopsis_binding_handles_practical_multiargument_commands();
     test_shell_renderer_quotes_structured_invocations();
+    test_named_usage_queries_resolve_exact_command_and_render_verified_help();
     test_syntax_provider_is_not_touched_for_ordinary_discovery();
     test_man_guidance_extracts_only_source_backed_examples();
     test_info_guidance_is_verified_and_falls_back_after_man();

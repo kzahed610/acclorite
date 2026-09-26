@@ -101,6 +101,48 @@ bool options_heading(std::string_view heading) {
     return heading == "OPTIONS" || heading.ends_with(" OPTIONS");
 }
 
+bool option_like_heading(std::string_view heading) {
+    // Some command families document executable grammar outside a literal
+    // OPTIONS section. GNU find, for example, places predicates/actions under
+    // TESTS/ACTIONS/OPERATORS. These still use the same conservative
+    // dash-prefixed declaration shape and carry their original provenance.
+    return options_heading(heading) ||
+           heading == "TESTS" ||
+           heading == "ACTIONS" ||
+           heading == "OPERATORS" ||
+           heading == "EXPRESSION" ||
+           heading == "EXPRESSIONS";
+}
+
+std::optional<std::string> indented_expression_subheading(
+    std::string_view raw_line,
+    std::string_view current_section
+) {
+    // GNU find renders TESTS/ACTIONS/OPERATORS and the option groups inside
+    // EXPRESSION as indented subsection headings. The generic top-level
+    // heading detector intentionally rejects indented text, so recognize only
+    // this small, explicit family while already inside find-style expression
+    // documentation. Ordinary indented uppercase prose remains prose.
+    const bool in_expression_family = current_section == "EXPRESSION" ||
+        current_section == "EXPRESSIONS" ||
+        current_section == "POSITIONAL OPTIONS" ||
+        current_section == "GLOBAL OPTIONS" ||
+        current_section == "TESTS" ||
+        current_section == "ACTIONS" ||
+        current_section == "OPERATORS";
+    if (!in_expression_family || raw_line.empty() ||
+        !std::isspace(static_cast<unsigned char>(raw_line.front()))) {
+        return std::nullopt;
+    }
+
+    const std::string heading = heading_name(raw_line);
+    if (heading == "POSITIONAL OPTIONS" || heading == "GLOBAL OPTIONS" ||
+        heading == "TESTS" || heading == "ACTIONS" || heading == "OPERATORS") {
+        return heading;
+    }
+    return std::nullopt;
+}
+
 bool commands_heading(std::string_view heading) {
     // Man pages vary between COMMANDS, SUBCOMMANDS, GIT COMMANDS, and grouped
     // headings such as HIGH-LEVEL COMMANDS (PORCELAIN). Accept the structural
@@ -297,6 +339,20 @@ std::optional<ParsedOptionLine> parse_option_line(
 
     if (names.empty()) {
         return std::nullopt;
+    }
+
+    // Wrapped prose in expression-oriented manuals can begin with a list of
+    // option names without being a declaration. GNU find, for example, wraps
+    // `... -size, -uid and -used) as` onto a line that otherwise looks like a
+    // multi-alias option. Treat a conjunction immediately after two or more
+    // parsed names as prose rather than inventing a synthetic `-size, -uid`
+    // grammar item.
+    if (names.size() >= 2 && cursor < line.size()) {
+        const std::string tail = trim(line.substr(cursor));
+        if (tail.starts_with("and ") || tail == "and" ||
+            tail.starts_with("or ") || tail == "or") {
+            return std::nullopt;
+        }
     }
 
     CommandOption option{
@@ -730,6 +786,14 @@ CommandGrammar parse_man_grammar(const std::string& command, std::string_view ma
     };
 
     while (std::getline(stream, line)) {
+        if (const auto subsection = indented_expression_subheading(line, section)) {
+            flush_synopsis();
+            flush_option();
+            flush_subcommand();
+            section = *subsection;
+            continue;
+        }
+
         if (uppercase_heading(line)) {
             flush_synopsis();
             flush_option();
@@ -759,7 +823,15 @@ CommandGrammar parse_man_grammar(const std::string& command, std::string_view ma
                 synopsis_indent = current_indent;
                 synopsis_text = trimmed;
             } else {
-                synopsis_text.push_back(' ');
+                // groff may insert U+2010 at a wrapped word boundary. Avoid
+                // leaking artifacts such as `Frame‐ works` into human usage
+                // output while preserving ordinary ASCII hyphens.
+                constexpr std::string_view kGroffWrapHyphen = "‐";
+                if (synopsis_text.ends_with(kGroffWrapHyphen)) {
+                    synopsis_text.erase(synopsis_text.size() - kGroffWrapHyphen.size());
+                } else {
+                    synopsis_text.push_back(' ');
+                }
                 synopsis_text += trimmed;
             }
             if (synopsis_text.size() > 1024) {
@@ -790,7 +862,7 @@ CommandGrammar parse_man_grammar(const std::string& command, std::string_view ma
             continue;
         }
 
-        if (!options_heading(section)) {
+        if (!option_like_heading(section)) {
             continue;
         }
 

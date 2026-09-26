@@ -194,6 +194,8 @@ QueryFrameResult recognize_frame(const Query& query) {
     add_phrase_patterns(evidence, text, QueryFrame::Explain, {
         {"what is", 3.2}, {"what does", 3.6}, {"tell me about", 4.0},
         {"explain", 3.8}, {"meaning of", 3.8},
+        {"how to use", 5.4}, {"how do i use", 5.4}, {"show me how to use", 5.8},
+        {"usage of", 4.8},
         {"what flag", 5.2}, {"which flag", 5.2},
         {"what option", 5.2}, {"which option", 5.2},
         {"what subcommand", 5.2}, {"which subcommand", 5.2},

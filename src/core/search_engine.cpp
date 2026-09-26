@@ -332,6 +332,7 @@ SearchResult SearchEngine::search(
         .locations = {},
         .candidates = {},
         .actionable_answer = std::nullopt,
+        .command_help = std::nullopt,
         .confidence = {},
         .clarifications = {},
         .timing = SearchTiming{.enabled = profile, .total_ms = 0.0, .stages = {}},
@@ -608,6 +609,51 @@ SearchResult SearchEngine::search(
         }
     };
 
+    const auto attach_command_help = [&]() {
+        result.command_help.reset();
+        if (result.candidates.empty() || query.frame.frame != QueryFrame::Explain ||
+            query.action_target.has_value()) {
+            return;
+        }
+
+        const Candidate& candidate = result.candidates.front();
+        CommandGrammar merged_grammar;
+        for (const auto& provider : syntax_providers_) {
+            if (!provider) {
+                continue;
+            }
+
+            const auto stage_started = Clock::now();
+            if (!provider->available()) {
+                record_stage(
+                    std::string("syntax-help:") + std::string(provider->diagnostic_name()),
+                    stage_started,
+                    0
+                );
+                continue;
+            }
+
+            auto grammar = provider->grammar(candidate);
+            const std::size_t item_count = grammar
+                ? grammar->global_options.size() + grammar->subcommands.size() + grammar->synopsis.size()
+                : 0;
+            record_stage(
+                std::string("syntax-help:") + std::string(provider->diagnostic_name()),
+                stage_started,
+                item_count
+            );
+            if (grammar) {
+                merge_command_grammar(merged_grammar, *grammar);
+            }
+        }
+
+        if (!merged_grammar.command.empty() &&
+            (!merged_grammar.synopsis.empty() || !merged_grammar.global_options.empty() ||
+             !merged_grammar.subcommands.empty())) {
+            result.command_help = std::move(merged_grammar);
+        }
+    };
+
     const auto attach_actionable_answer = [&]() {
         result.actionable_answer.reset();
         if (result.candidates.empty() || !AnswerComposer::may_compose(query)) {
@@ -742,6 +788,7 @@ SearchResult SearchEngine::search(
         if (auto resolved = resolve_target(*query.action_target->command)) {
             result.candidates.push_back(std::move(*resolved));
             attach_guidance(1);
+            attach_command_help();
             attach_actionable_answer();
             attach_confidence();
             finish_timing();
@@ -756,6 +803,7 @@ SearchResult SearchEngine::search(
         if (auto resolved = resolve_target(query.targets.front())) {
             result.candidates.push_back(std::move(*resolved));
             attach_guidance(1);
+            attach_command_help();
             attach_actionable_answer();
             attach_confidence();
             finish_timing();
@@ -842,6 +890,7 @@ SearchResult SearchEngine::search(
     // Guidance is post-ranking and bounded to the best match. It must never
     // affect recall, ranking, confidence, or the v0.1 regression contract.
     attach_guidance(1);
+    attach_command_help();
     attach_actionable_answer();
     attach_confidence();
     finish_timing();

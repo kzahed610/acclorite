@@ -2,6 +2,22 @@
 
 Release notes and historical development notes moved out of the project front page so the README can stay focused on using Acclorite.
 
+## v0.3.5
+
+`v0.3.5` makes named-command explanation queries genuinely instructional without making ordinary discovery verbose again. Phrases such as `how to use grep`, `how do I use find`, and `usage of git` now resolve as entity-first Explain queries, so an explicitly named command is resolved before similarly named alternatives or replacements can outrank it.
+
+For general named-command explanations, Acclorite now attaches verified root grammar from the existing local syntax providers and renders a bounded human overview: up to two documented synopsis forms, up to six documented options with aliases/value shapes/descriptions, and up to six documented subcommands with descriptions. Options used by the displayed verified example are promoted to the top of the option list so example flags are explained immediately. Generic help/version switches are omitted from the compact overview. Focused syntax questions such as `what does grep -n do` continue to use the existing targeted actionable-answer path instead of dumping the whole command grammar. Machine JSON schema 15 remains unchanged; the overview is a human terminal presentation feature only.
+
+A second command-help pass makes the overview example-led instead of grammar-dump-led. Acclorite now prefers a simpler non-destructive verified example for general usage help, explains the documented switches or expression primitives actually used by that example, and keeps the remaining syntax in a separate bounded section. Man syntax extraction also recognizes find-style TESTS/ACTIONS/OPERATORS/EXPRESSIONS sections, so predicates such as `-name`, `-type`, and actions such as `-print` can be explained from local documentation rather than omitted as non-options. Bare command-section tokens without source-backed descriptions are suppressed from the teaching overview, long dispatcher synopses are visibly abbreviated, and groff wrap/spacing artifacts are normalized for human output. Focused action queries and machine contracts remain unchanged.
+
+A final command-help hardening pass handles the real GNU `find(1)` layout: indented EXPRESSION subsection headings are recognized, the man guidance provider keeps a bounded pool of verified examples so destructive examples can be skipped in favor of later read-only ones, and compact `find` teaching output promotes common predicates/actions such as `-name`, `-type`, and `-print` ahead of low-level traversal switches. Human focused-syntax output also suppresses the unhelpful `Safety Unknown` label while preserving the machine safety value.
+
+This release also repairs release-version bookkeeping after the lore follow-up: the binary/CMake version, capability fixtures, manual header, README badge, issue template, and AUR packaging now agree on `0.3.5`. Historical Milestone-9 documentation that specifically describes the `v0.3.3` XBPS gate remains unchanged.
+
+## v0.3.4
+
+`v0.3.4` restores the original hidden lore system: ordinary interactive human queries have a sparse chance of receiving one locally bundled quote after the real answer, and an undocumented standalone `--lore` path can request one directly. The feature is terminal-only and presentation-only; JSON, Doctor, capabilities, maintenance commands, ranking, profiling, exit semantics, and network behavior are unchanged. The compact runtime corpus is generated from a separately maintained Volume 1-10 master collection using cross-source agreement and balanced coverage, with manual project overrides kept explicit rather than misrepresented as master-dataset entries.
+
 ## v0.3.3
 
 `v0.3.3` adds the Void Linux `XbpsSource` as the fifth and final package backend currently planned for Milestone 9. Backend selection now covers Arch/pacman, Debian/APT, Fedora/DNF, openSUSE/Zypper, and Void/XBPS under the same `PackageBackend` contract and deterministic distro-selection rules.
@@ -11,8 +27,6 @@ XBPS discovery remains query-only and offline at runtime. Acclorite searches syn
 The active Milestone-9 package-backend set ends here. Alpine/APK-specific integration is not planned; generic non-package-manager Acclorite sources remain independent of that decision.
 
 The release-polish pass also makes parked M11 research explicitly opt-in, refreshes the human terminal presentation, simplifies the public README, adds CI/contribution/security surfaces for GitHub, and adds a manifest-driven CMake `uninstall` target for source installs. The default search view is intentionally dense: installed state, path, and interface share one row; package/source/matched-term diagnostics stay out of normal output; empty example sections disappear; guidance collapses to compact rows; clear-confidence notices are omitted; and alternatives use one line each. These changes do not alter the frozen machine schemas or deterministic ranking contract.
-
-The original hidden lore system is also restored for the release: ordinary interactive human queries have a sparse chance of receiving one locally bundled quote after the real answer, and an undocumented standalone `--lore` path can request one directly. The feature is terminal-only and presentation-only; JSON, Doctor, capabilities, maintenance commands, ranking, profiling, exit semantics, and network behavior are unchanged. The compact runtime corpus is generated from a separately maintained Volume 1-10 master collection using cross-source agreement and balanced coverage, with manual project overrides kept explicit rather than misrepresented as master-dataset entries.
 
 ## v0.3.2
 

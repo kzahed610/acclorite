@@ -35,7 +35,7 @@ bool generic_target_word(std::string_view word) {
         "a", "an", "and", "are", "about", "between", "bro", "can", "command",
         "difference", "differences", "do", "does", "explain", "for", "how", "i",
         "in", "is", "it", "me", "meaning", "my", "of", "on", "please", "program",
-        "tell", "the", "thing", "this", "to", "tool", "use", "versus", "vs",
+        "tell", "the", "thing", "this", "to", "tool", "usage", "use", "versus", "vs",
         "what", "where", "which", "why", "with"
     };
     return generic.contains(std::string(word));

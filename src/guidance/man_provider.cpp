@@ -155,6 +155,14 @@ std::vector<UsageExample> extract_examples(
         if (candidate.empty() || !starts_with_command(candidate, command)) {
             continue;
         }
+        // A trailing shell continuation marker means this is only the first
+        // physical line of a multi-line example. Rendering that fragment as a
+        // standalone command produces nonsense such as `find / \`. Until the
+        // guidance layer has a full shell-continuation joiner, prefer omission
+        // over presenting an incomplete invocation.
+        if (candidate.ends_with('\\')) {
+            continue;
+        }
         if (candidate.size() > 240) {
             continue;
         }
@@ -174,7 +182,12 @@ std::vector<UsageExample> extract_examples(
             .verified_by = {},
             .verified_on = {},
         });
-        if (examples.size() >= 2) {
+        // Keep a small bounded pool rather than only the first two examples.
+        // Some manuals (notably GNU find) lead with destructive examples and
+        // place simpler read-only examples later in the section. The terminal
+        // renderer can then choose the safest/simple verified example without
+        // inventing syntax.
+        if (examples.size() >= 8) {
             break;
         }
     }

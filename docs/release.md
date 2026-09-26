@@ -90,7 +90,7 @@ The staged binary must report bundled curated guidance as available from the sta
 
 ## 4. Tag upstream
 
-Commit the release, then create/push `v<version>` (for this slice, `v0.3.3`). The AUR package intentionally targets a fixed release tag rather than a moving branch.
+Commit the release, then create/push `v<version>` (for this slice, `v0.3.5`). The AUR package intentionally targets a fixed release tag rather than a moving branch.
 
 ## 5. Validate the AUR recipe
 

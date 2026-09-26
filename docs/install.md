@@ -140,7 +140,7 @@ After installation, `acclorite --capabilities` should report `xbps_packages: tru
 
 ## AUR package
 
-The repository ships the stable AUR packaging source under `packaging/aur/`. Once the matching `v0.3.3` upstream release tag has been pushed and the package published to the AUR, installation is the normal AUR workflow (for example with an AUR helper or by cloning the AUR package repository and running `makepkg -si`).
+The repository ships the stable AUR packaging source under `packaging/aur/`. Once the matching `v0.3.5` upstream release tag has been pushed and the package published to the AUR, installation is the normal AUR workflow (for example with an AUR helper or by cloning the AUR package repository and running `makepkg -si`).
 
 The package installs to `/usr`, runs the full test suite in `check()`, and keeps `man-db`, `expac`, `pkgfile`, and `tealdeer` as optional integrations. Its installed payload includes:
 

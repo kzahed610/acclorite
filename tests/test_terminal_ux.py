@@ -80,7 +80,7 @@ def isolated_env(root: Path, path: Path) -> dict[str, str]:
 def test_help_and_color_policy(binary: Path) -> None:
     captured = run(binary, "--help")
     require(captured.returncode == 0, "--help must succeed")
-    require("Acclorite 0.3.3" in captured.stdout, "help must expose the current version")
+    require("Acclorite 0.3.5" in captured.stdout, "help must expose the current version")
     require("Deterministic · local-first · no network at runtime" in captured.stdout,
             "help must state the local/offline operating model")
     require("Try it" in captured.stdout and "Options" in captured.stdout,

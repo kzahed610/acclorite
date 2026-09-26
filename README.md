@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/kzahed610/Acclorite/actions/workflows/verify.yml"><img alt="Verify" src="https://github.com/kzahed610/Acclorite/actions/workflows/verify.yml/badge.svg"></a>
-  &nbsp; <code>v0.3.3</code> &nbsp; <code>C++20</code> &nbsp; <code>GPL-3.0-or-later</code>
+  &nbsp; <code>v0.3.5</code> &nbsp; <code>C++20</code> &nbsp; <code>GPL-3.0-or-later</code>
 </p>
 
 Acclorite is a local-first Linux CLI for the moment when you know **what you want to do**, but not which command or application you should be looking for.
@@ -176,7 +176,7 @@ Experimental semantic-retrieval/ONNX work is intentionally opt-in and is **not p
 
 ## Project status
 
-The deterministic standalone CLI is the release focus for `v0.3.3`.
+The deterministic standalone CLI is the release focus for `v0.3.5`.
 
 Semantic-retrieval research is preserved in the repository but currently parked. It demonstrated useful local recall, while also establishing a strict boundary: semantic assistance may surface separate source-substantiated alternatives, but it does not replace deterministic ranking, syntax authority, provenance, or safety.
 

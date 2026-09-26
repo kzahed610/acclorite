@@ -1,6 +1,6 @@
 # Acclorite machine interface
 
-Acclorite v0.3.3 preserves the Milestone 7 compatibility contract first
+Acclorite v0.3.5 preserves the Milestone 7 compatibility contract first
 published in v0.2.5 and frozen in v0.2.6 for non-interactive clients such as Realmheart. This document describes the public
 CLI/JSON boundary. Internal C++ types, ranking weights, cache schemas, and exact
 floating-point scores are not part of this contract.
@@ -46,7 +46,7 @@ The capability document has its own compatibility version:
 ```json
 {
   "capabilities_schema_version": 1,
-  "acclorite_version": "0.3.3",
+  "acclorite_version": "0.3.5",
   "search_schema_version": 15,
   "doctor_schema_version": 1,
   "offline_runtime": true,

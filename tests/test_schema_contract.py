@@ -503,7 +503,7 @@ def test_capability_schema(binary: Path) -> dict[str, Any]:
     require(proc.returncode == SUCCESS, "capabilities contract must exit 0")
     payload = load_json(proc, "capabilities")
     validate_capabilities(payload, "capabilities")
-    require(payload["acclorite_version"] == "0.3.3", "capabilities must expose v0.3.3")
+    require(payload["acclorite_version"] == "0.3.5", "capabilities must expose v0.3.5")
     return payload
 
 
